@@ -55,6 +55,7 @@ func (s *ServiceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, er
 	s.serviceStruct(file, node)
 	s.funcGet(file, node)
 	s.funcList(file, node)
+	s.funcListEdge(file, node)
 	return file, nil
 }
 
@@ -148,6 +149,7 @@ func (s *ServiceBuilder) funcGet(file *jen.File, node *gen.Type) {
 }
 
 func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
+	defer file.Line()
 	var fields = make([]jen.Code, 0, len(node.Fields))
 	for _, item := range node.Fields {
 		fields = append(
@@ -190,26 +192,27 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 			jen.Line(),
 			&edges,
 			jen.Line(),
-			jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
-				jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
-					jen.Case(jen.Op("*").Qual(entproto, "Paginator_Classical")),
-					assign("query").Id("query").
-						Dot("Order").Call(chain("page", "Classical", "OrderSelector").Call()).
-						Dot("Offset").Call(jen.Int().Call(
-						jen.Id("page").Dot("Classical").Dot("GetLimit()").Op("*").Call(jen.Id("page").Dot("Classical").Dot("GetPage()").Op("-").Id("1")),
-					)).
-						Dot("Limit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
-					jen.Case(jen.Op("*").Qual(entproto, "Paginator_Infinite")),
-					assign("query").Id("query").
-						Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ByID").Call()).
-						Dot("Limit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
-					jen.If(define("sequence").Id("page").Dot("Infinite").Dot("GetSequence()").Op(";").Id("sequence").Op(">").Id("0")).Block(
-						assign("query").Id("query").Dot("Where").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "IDLT").Call(
-							jen.Int().Call(chain("page", "Infinite", "GetSequence()")),
-						)),
-					),
-				),
-			),
+			//jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
+			//	jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
+			//		jen.Case(jen.Op("*").Qual(entproto, "Paginator_Classical")),
+			//		assign("query").Id("query").
+			//			Dot("Order").Call(chain("page", "Classical", "OrderSelector").Call()).
+			//			Dot("Offset").Call(jen.Int().Call(
+			//			jen.Id("page").Dot("Classical").Dot("GetLimit()").Op("*").Call(jen.Id("page").Dot("Classical").Dot("GetPage()").Op("-").Id("1")),
+			//		)).
+			//			Dot("Limit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
+			//		jen.Case(jen.Op("*").Qual(entproto, "Paginator_Infinite")),
+			//		assign("query").Id("query").
+			//			Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ByID").Call()).
+			//			Dot("Limit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
+			//		jen.If(define("sequence").Id("page").Dot("Infinite").Dot("GetSequence()").Op(";").Id("sequence").Op(">").Id("0")).Block(
+			//			assign("query").Id("query").Dot("Where").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "IDLT").Call(
+			//				jen.Int().Call(chain("page", "Infinite", "GetSequence()")),
+			//			)),
+			//		),
+			//	),
+			//),
+			s.buildPaginator(node.Name),
 			jen.Line(),
 
 			jen.List(jen.Id("data"), jen.Id("err")).Op(":=").Id("query").Op(".").Id("All").Call(jen.Id("ctx")),
@@ -224,7 +227,36 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 				jen.Id("nil"),
 			),
 		)
+}
 
+func (s *ServiceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
+	for _, edge := range node.Edges {
+		var fields []jen.Code
+		for _, v := range edge.Type.Fields {
+			code := chain("request", "Options", text.ProtoPascal(v.Name), "Selector").Call(
+				jen.Qual(path.Join(s.entPackage, strings.ToLower(edge.Type.Name)), fmt.Sprintf("Field%s", text.EntPascal(v.Name))),
+			)
+			fields = append(fields, code)
+		}
+		file.Func().Op("(").Id("s").Op("*").Id(fmt.Sprintf("%sService", node.Name)).Op(")").Id(fmt.Sprintf("List%s", text.ProtoPascal(edge.Name))).
+			Params(
+				jen.Id("ctx").Qual("context", "Context"),
+				jen.Id("request").Op("*").Qual(s.protoPackage, fmt.Sprintf("List%s%sRequest", node.Name, text.ProtoPascal(edge.Name))),
+			).
+			Call(
+				jen.Op("*").Qual(s.protoPackage, fmt.Sprintf("List%sResponse", edge.Type.Name)),
+				jen.Id("error"),
+			).Block(
+			define("query").Id("s").Dot("client").Dot("Query").Call().Dot("Where").Call(
+				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(jen.Int().Call(chain("request", node.Name+"Id"))),
+			).Dot(fmt.Sprintf("Query%s", text.EntPascal(edge.Name))).Call().Dot("Where").Call(
+				jen.Qual(entproto, "Selectors").Index(jen.Qual(path.Join(s.entPackage, "predicate"), edge.Type.Name)).Call(fields...).Op("..."),
+			),
+			file.Line(),
+			s.buildPaginator(edge.Type.Name),
+			s.buildListResponse(edge.Type.Name, fmt.Sprintf("List%sResponse", edge.Type.Name)),
+		)
+	}
 }
 
 func (s *ServiceBuilder) serviceFunc(file *jen.File, method string, name string) *jen.Statement {
@@ -237,4 +269,44 @@ func (s *ServiceBuilder) serviceFunc(file *jen.File, method string, name string)
 			jen.Op("*").Qual(s.protoPackage, fmt.Sprintf("%s%sResponse", method, name)),
 			jen.Id("error"),
 		)
+}
+
+func (s *ServiceBuilder) buildPaginator(name string) jen.Code {
+	return jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
+		jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
+			jen.Case(jen.Op("*").Qual(entproto, "Paginator_Classical")),
+			assign("query").Id("query").
+				Dot("Order").Call(chain("page", "Classical", "OrderSelector").Call()).
+				Dot("Offset").Call(jen.Int().Call(
+				jen.Id("page").Dot("Classical").Dot("GetLimit()").Op("*").Call(jen.Id("page").Dot("Classical").Dot("GetPage()").Op("-").Id("1")),
+			)).
+				Dot("Limit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
+			jen.Case(jen.Op("*").Qual(entproto, "Paginator_Infinite")),
+			assign("query").Id("query").
+				Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(name)), "ByID").Call()).
+				Dot("Limit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
+			jen.If(define("sequence").Id("page").Dot("Infinite").Dot("GetSequence()").Op(";").Id("sequence").Op(">").Id("0")).Block(
+				assign("query").Id("query").Dot("Where").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(name)), "IDLT").Call(
+					jen.Int().Call(chain("page", "Infinite", "GetSequence()")),
+				)),
+			),
+		),
+	)
+}
+
+func (s *ServiceBuilder) buildListResponse(name, response string) *jen.Statement {
+	codes := jen.Statement{
+		define("data", "err").Id("query").Dot("All").Call(jen.Id("ctx")),
+		jen.Line(),
+		jen.If(jen.Id("err").Op("!=").Id("nil")).Block(
+			jen.Return(jen.Id("nil"), jen.Id("err")),
+		),
+		jen.Line(),
+		jen.Return(
+			jen.Op("&").Qual(s.protoPackage, response).Block(
+				jen.Id("Data").Op(":").Id("Trans").Call(jen.Id("data"), jen.Id(fmt.Sprintf("%sToProto", name))).Op(","),
+			),
+			jen.Id("nil")),
+	}
+	return &codes
 }

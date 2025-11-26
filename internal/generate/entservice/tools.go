@@ -34,3 +34,10 @@ func join(st *jen.Statement, args ...jen.Code) *jen.Statement {
 	*st = append(*st, args...)
 	return st
 }
+
+//func call(codes ...*jen.Statement) *jen.Statement {
+//	var st jen.Statement
+//	for _, code := range codes {
+//		code.Op(",").Id("\n")
+//	}
+//}

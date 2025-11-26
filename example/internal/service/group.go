@@ -79,3 +79,31 @@ func (s *GroupService) List(ctx context.Context, request *pb.ListGroupRequest) (
 		Data: Trans(data, GroupToProto),
 	}, nil
 }
+
+func (s *GroupService) ListGroupUsers(ctx context.Context, request *pb.ListGroupGroupUsersRequest) (*pb.ListUserResponse, error) {
+	query := s.client.Query().Where(group.ID(int(request.GroupId))).QueryGroupUsers().Where(entproto.Selectors[predicate.User](
+		request.Options.Name.Selector(user.FieldName),
+		request.Options.CreatedAt.Selector(user.FieldCreatedAt),
+		request.Options.UpdatedAt.Selector(user.FieldUpdatedAt),
+		request.Options.GroupId.Selector(user.FieldGroupID),
+		request.Options.Status.Selector(user.FieldStatus))...)
+
+	if paginator := request.GetPaginator(); paginator != nil {
+		switch page := paginator.GetPaginator().(type) {
+		case *entproto.Paginator_Classical:
+			query = query.Order(page.Classical.OrderSelector()).Offset(int(page.Classical.GetLimit() * (page.Classical.GetPage() - 1))).Limit(int(page.Classical.GetLimit()))
+		case *entproto.Paginator_Infinite:
+			query = query.Order(user.ByID()).Limit(int(page.Infinite.GetLimit()))
+			if sequence := page.Infinite.GetSequence(); sequence > 0 {
+				query = query.Where(user.IDLT(int(page.Infinite.GetSequence())))
+			}
+		}
+	}
+	data, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ListUserResponse{
+		Data: Trans(data, UserToProto),
+	}, nil
+}

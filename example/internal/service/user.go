@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-
 	ent "github.com/syralon/entc-gen-go/example/ent"
 	group "github.com/syralon/entc-gen-go/example/ent/group"
 	predicate "github.com/syralon/entc-gen-go/example/ent/predicate"
@@ -82,5 +81,31 @@ func (s *UserService) List(ctx context.Context, request *pb.ListUserRequest) (*p
 	}
 	return &pb.ListUserResponse{
 		Data: Trans(data, UserToProto),
+	}, nil
+}
+
+func (s *UserService) ListUserGroups(ctx context.Context, request *pb.ListUserUserGroupsRequest) (*pb.ListGroupResponse, error) {
+	query := s.client.Query().Where(user.ID(int(request.UserId))).QueryUserGroups().Where(entproto.Selectors[predicate.Group](
+		request.Options.Name.Selector(group.FieldName),
+		request.Options.CreatedAt.Selector(group.FieldCreatedAt),
+		request.Options.UpdatedAt.Selector(group.FieldUpdatedAt))...)
+
+	if paginator := request.GetPaginator(); paginator != nil {
+		switch page := paginator.GetPaginator().(type) {
+		case *entproto.Paginator_Classical:
+			query = query.Order(page.Classical.OrderSelector()).Offset(int(page.Classical.GetLimit() * (page.Classical.GetPage() - 1))).Limit(int(page.Classical.GetLimit()))
+		case *entproto.Paginator_Infinite:
+			query = query.Order(group.ByID()).Limit(int(page.Infinite.GetLimit()))
+			if sequence := page.Infinite.GetSequence(); sequence > 0 {
+				query = query.Where(group.IDLT(int(page.Infinite.GetSequence())))
+			}
+		}
+	}
+	data, err := query.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.ListGroupResponse{
+		Data: Trans(data, GroupToProto),
 	}, nil
 }
