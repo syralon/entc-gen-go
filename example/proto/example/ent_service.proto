@@ -73,6 +73,18 @@ message UserUpdateOptions {
   GroupUpdateOptions user_groups = 5;
 }
 
+message ListGroupOrder {
+  GroupOrder by = 1;
+
+  bool desc = 2;
+}
+
+message ListUserOrder {
+  UserOrder by = 1;
+
+  bool desc = 2;
+}
+
 message GetGroupRequest {
   int64 id = 1;
 }
@@ -92,7 +104,9 @@ message GetUserResponse {
 message ListGroupRequest {
   GroupOptions options = 1;
 
-  syralon.entproto.Paginator paginator = 2;
+  repeated ListGroupOrder orders = 2;
+
+  syralon.entproto.Paginator paginator = 3;
 }
 
 message ListGroupResponse {
@@ -102,7 +116,9 @@ message ListGroupResponse {
 message ListUserRequest {
   UserOptions options = 1;
 
-  syralon.entproto.Paginator paginator = 2;
+  repeated ListUserOrder orders = 2;
+
+  syralon.entproto.Paginator paginator = 3;
 }
 
 message ListUserResponse {
@@ -199,7 +215,9 @@ message ListGroupGroupUsersRequest {
 
   UserOptions options = 2;
 
-  syralon.entproto.Paginator paginator = 3;
+  repeated ListUserOrder orders = 3;
+
+  syralon.entproto.Paginator paginator = 4;
 }
 
 message ListUserUserGroupsRequest {
@@ -207,7 +225,25 @@ message ListUserUserGroupsRequest {
 
   GroupOptions options = 2;
 
-  syralon.entproto.Paginator paginator = 3;
+  repeated ListGroupOrder orders = 3;
+
+  syralon.entproto.Paginator paginator = 4;
+}
+
+enum GroupOrder {
+  GROUP_ORDER_BY_ID = 0;
+
+  GROUP_ORDER_BY_CREATED_AT = 1;
+
+  GROUP_ORDER_BY_UPDATED_AT = 2;
+}
+
+enum UserOrder {
+  USER_ORDER_BY_ID = 0;
+
+  USER_ORDER_BY_CREATED_AT = 1;
+
+  USER_ORDER_BY_GROUP_ID = 2;
 }
 
 service GroupService {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	sql "entgo.io/ent/dialect/sql"
 	ent "github.com/syralon/entc-gen-go/example/ent"
 	group "github.com/syralon/entc-gen-go/example/ent/group"
 	predicate "github.com/syralon/entc-gen-go/example/ent/predicate"
@@ -10,6 +11,12 @@ import (
 	entproto "github.com/syralon/entc-gen-go/proto/syralon/entproto"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
+
+var groupOrderFields = map[pb.GroupOrder]string{
+	pb.GroupOrder_GROUP_ORDER_BY_ID:         group.FieldID,
+	pb.GroupOrder_GROUP_ORDER_BY_CREATED_AT: group.FieldCreatedAt,
+	pb.GroupOrder_GROUP_ORDER_BY_UPDATED_AT: group.FieldUpdatedAt,
+}
 
 func GroupToProto(data *ent.Group) *pb.Group {
 	return &pb.Group{
@@ -49,22 +56,46 @@ func (s *GroupService) Get(ctx context.Context, request *pb.GetGroupRequest) (*p
 }
 
 func (s *GroupService) List(ctx context.Context, request *pb.ListGroupRequest) (*pb.ListGroupResponse, error) {
-	conditions := entproto.Selectors[predicate.Group](request.Options.Name.Selector(group.FieldName), request.Options.CreatedAt.Selector(group.FieldCreatedAt), request.Options.UpdatedAt.Selector(group.FieldUpdatedAt))
+	conditions := entproto.Selectors[predicate.Group](
+		request.Options.Name.Selector(group.FieldName),
+		request.Options.CreatedAt.Selector(group.FieldCreatedAt),
+		request.Options.UpdatedAt.Selector(group.FieldUpdatedAt),
+	)
 	query := s.client.Query()
 	query = query.Where(conditions...)
 
 	if e := request.Options.GroupUsers; e != nil {
 		query.WithGroupUsers(func(eq *ent.UserQuery) {
-			eq.Where(entproto.Selectors[predicate.User](e.Name.Selector(user.FieldName), e.CreatedAt.Selector(user.FieldCreatedAt), e.UpdatedAt.Selector(user.FieldUpdatedAt), e.GroupId.Selector(user.FieldGroupID), e.Status.Selector(user.FieldStatus))...)
+			eq.Where(entproto.Selectors[predicate.User](
+				e.Name.Selector(user.FieldName),
+				e.CreatedAt.Selector(user.FieldCreatedAt),
+				e.UpdatedAt.Selector(user.FieldUpdatedAt),
+				e.GroupId.Selector(user.FieldGroupID),
+				e.Status.Selector(user.FieldStatus),
+			)...)
 		})
+	}
+
+	for _, order := range request.GetOrders() {
+		if order == nil {
+			continue
+		}
+		var opts []sql.OrderTermOption
+		if order.GetDesc() {
+			opts = append(opts, sql.OrderDesc())
+		}
+		query = query.Order(sql.OrderByField(groupOrderFields[order.GetBy()], opts...).ToFunc())
 	}
 
 	if paginator := request.GetPaginator(); paginator != nil {
 		switch page := paginator.GetPaginator().(type) {
 		case *entproto.Paginator_Classical:
-			query = query.Order(page.Classical.OrderSelector()).Offset(int(page.Classical.GetLimit() * (page.Classical.GetPage() - 1))).Limit(int(page.Classical.GetLimit()))
+			query = query.Order(page.Classical.OrderSelector()).
+				Offset(int(page.Classical.GetLimit() * (page.Classical.GetPage() - 1))).
+				Limit(int(page.Classical.GetLimit()))
 		case *entproto.Paginator_Infinite:
-			query = query.Order(group.ByID()).Limit(int(page.Infinite.GetLimit()))
+			query = query.Order(group.ByID()).
+				Limit(int(page.Infinite.GetLimit()))
 			if sequence := page.Infinite.GetSequence(); sequence > 0 {
 				query = query.Where(group.IDLT(int(page.Infinite.GetSequence())))
 			}
@@ -86,19 +117,35 @@ func (s *GroupService) ListGroupUsers(ctx context.Context, request *pb.ListGroup
 		request.Options.CreatedAt.Selector(user.FieldCreatedAt),
 		request.Options.UpdatedAt.Selector(user.FieldUpdatedAt),
 		request.Options.GroupId.Selector(user.FieldGroupID),
-		request.Options.Status.Selector(user.FieldStatus))...)
+		request.Options.Status.Selector(user.FieldStatus),
+	)...)
+
+	for _, order := range request.GetOrders() {
+		if order == nil {
+			continue
+		}
+		var opts []sql.OrderTermOption
+		if order.GetDesc() {
+			opts = append(opts, sql.OrderDesc())
+		}
+		query = query.Order(sql.OrderByField(userOrderFields[order.GetBy()], opts...).ToFunc())
+	}
 
 	if paginator := request.GetPaginator(); paginator != nil {
 		switch page := paginator.GetPaginator().(type) {
 		case *entproto.Paginator_Classical:
-			query = query.Order(page.Classical.OrderSelector()).Offset(int(page.Classical.GetLimit() * (page.Classical.GetPage() - 1))).Limit(int(page.Classical.GetLimit()))
+			query = query.Order(page.Classical.OrderSelector()).
+				Offset(int(page.Classical.GetLimit() * (page.Classical.GetPage() - 1))).
+				Limit(int(page.Classical.GetLimit()))
 		case *entproto.Paginator_Infinite:
-			query = query.Order(user.ByID()).Limit(int(page.Infinite.GetLimit()))
+			query = query.Order(user.ByID()).
+				Limit(int(page.Infinite.GetLimit()))
 			if sequence := page.Infinite.GetSequence(); sequence > 0 {
 				query = query.Where(user.IDLT(int(page.Infinite.GetSequence())))
 			}
 		}
 	}
+
 	data, err := query.All(ctx)
 	if err != nil {
 		return nil, err

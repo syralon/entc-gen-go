@@ -8,7 +8,7 @@ func chain(names ...string) *jen.Statement {
 		if i == 0 {
 			st = jen.Id(name)
 		} else {
-			st = st.Op(".").Id(name)
+			st = st.Dot(name)
 		}
 	}
 	return st
@@ -30,14 +30,14 @@ func define(names ...string) *jen.Statement {
 	return list(names...).Op(":=")
 }
 
-func join(st *jen.Statement, args ...jen.Code) *jen.Statement {
-	*st = append(*st, args...)
-	return st
+func calls(codes ...*jen.Statement) *jen.Statement {
+	st := jen.Op("(").Id("\n")
+	for _, code := range codes {
+		st = st.Add(code.Op(",").Id("\n"))
+	}
+	return st.Op(")")
 }
 
-//func call(codes ...*jen.Statement) *jen.Statement {
-//	var st jen.Statement
-//	for _, code := range codes {
-//		code.Op(",").Id("\n")
-//	}
-//}
+func lf() *jen.Statement {
+	return jen.Id("\n")
+}

@@ -17,8 +17,8 @@ type Group struct {
 func (Group) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name"),
-		field.Time("created_at").Annotations(entproto.Field(entproto.WithFieldImmutable(true))),
-		field.Time("updated_at").Annotations(entproto.Field(entproto.WithFieldImmutable(true))),
+		field.Time("created_at").Annotations(entproto.Field(entproto.WithFieldImmutable(true), entproto.WithFieldOrderable(true))),
+		field.Time("updated_at").Annotations(entproto.Field(entproto.WithFieldImmutable(true), entproto.WithFieldOrderable(true))),
 	}
 }
 

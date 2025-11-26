@@ -9,6 +9,7 @@ import (
 
 type builder struct {
 	mbs []ProtoMessageBuilder
+	ebs []ProtoEnumBuilder
 	sbs []ProtoServiceBuilder
 
 	filename string
@@ -27,6 +28,12 @@ func WithMessageBuilder(mb ...ProtoMessageBuilder) BuildOption {
 func WithServiceBuilder(sb ...ProtoServiceBuilder) BuildOption {
 	return func(builder *builder) {
 		builder.sbs = append(builder.sbs, sb...)
+	}
+}
+
+func WithEnumBuilder(eb ...ProtoEnumBuilder) BuildOption {
+	return func(builder *builder) {
+		builder.ebs = append(builder.ebs, eb...)
 	}
 }
 
@@ -61,6 +68,19 @@ func (b *builder) Build(ctx Context, graph *gen.Graph) (*protobuilder.FileBuilde
 	fb.SetOptions(&descriptorpb.FileOptions{GoPackage: &b.goPkg})
 
 	fc := NewFileContext(ctx, fb)
+
+	for _, eb := range b.ebs {
+		for _, node := range graph.Nodes {
+			ebs, err := eb.Build(fc, node)
+			if err != nil {
+				return nil, err
+			}
+			for _, v := range ebs {
+				fb.AddEnum(v)
+			}
+		}
+	}
+
 	var edges = Edges{}
 	for _, mb := range b.mbs {
 		for _, node := range graph.Nodes {

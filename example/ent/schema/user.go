@@ -19,9 +19,9 @@ type User struct {
 func (User) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("name").Comment("The user name").Annotations(openapi.Schema(&openapiv3.Schema{Description: "The name"})),
-		field.Time("created_at").Comment("The created time").Annotations(entproto.Field(entproto.WithFieldImmutable(true))),
+		field.Time("created_at").Comment("The created time").Annotations(entproto.Field(entproto.WithFieldImmutable(true), entproto.WithFieldOrderable(true))),
 		field.Time("updated_at").Comment("The latest update time").Annotations(entproto.Field(entproto.WithFieldImmutable(true))),
-		field.Int64("group_id"),
+		field.Int64("group_id").Annotations(entproto.Field(entproto.WithFieldOrderable(true))),
 		field.Int32("status").Annotations(entproto.Field(entproto.WithFieldSettable(true))),
 	}
 }

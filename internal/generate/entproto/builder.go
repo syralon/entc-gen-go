@@ -1,10 +1,11 @@
 package entproto
 
 import (
-	"github.com/syralon/entc-gen-go/internal/entgen"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/syralon/entc-gen-go/internal/entgen"
 )
 
 func NewEntityBuilder(path, pkg, goPkg string) ProtoFileBuilder {
@@ -25,9 +26,11 @@ func NewGRPCBuilder(filename, pkg, goPkg string) ProtoFileBuilder {
 		WithFilename(filename),
 		WithPackage(pkg),
 		WithGoPackage(goPkg),
+		WithEnumBuilder(&orderEnumBuilder{}),
 		WithMessageBuilder(
 			OptionMessages(),
 			UpdateOptionMessages(),
+			ListOrderMessage(),
 			MethodGetMessages(),
 			MethodListMessages(),
 			MethodCreateMessages(),

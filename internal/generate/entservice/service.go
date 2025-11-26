@@ -9,12 +9,16 @@ import (
 	"entgo.io/ent/entc/gen"
 	"entgo.io/ent/schema/field"
 	"github.com/dave/jennifer/jen"
+	"github.com/iancoleman/strcase"
 	"github.com/syralon/entc-gen-go/internal/tools/text"
+	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"
 )
 
 const (
-	entproto    = "github.com/syralon/entc-gen-go/proto/syralon/entproto"
+	pkgEntproto = "github.com/syralon/entc-gen-go/proto/syralon/entproto"
+	entsql      = "entgo.io/ent/dialect/sql"
 	timestamppb = "google.golang.org/protobuf/types/known/timestamppb"
+	pkgStrcase  = "github.com/iancoleman/strcase"
 )
 
 type ServiceBuilder struct {
@@ -47,9 +51,9 @@ func NewServiceBuilder(opts ...ServiceOption) *ServiceBuilder {
 func (s *ServiceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, error) {
 	file := jen.NewFile("service")
 
-	//"google.golang.org/protobuf/types/known/timestamppb"
-	//"github.com/syralon/entc-gen-go/proto/syralon/entproto"
 	file.ImportAlias(s.protoPackage, "pb")
+
+	s.orderMapping(file, node)
 	s.funcToProto(file, node)
 	s.funcFromProto(file, node)
 	s.serviceStruct(file, node)
@@ -150,7 +154,7 @@ func (s *ServiceBuilder) funcGet(file *jen.File, node *gen.Type) {
 
 func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 	defer file.Line()
-	var fields = make([]jen.Code, 0, len(node.Fields))
+	var fields = make([]*jen.Statement, 0, len(node.Fields))
 	for _, item := range node.Fields {
 		fields = append(
 			fields,
@@ -162,7 +166,7 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 	var edges jen.Statement
 	for _, edge := range node.Edges {
 
-		var edgeFields []jen.Code
+		var edgeFields []*jen.Statement
 		for _, ef := range edge.Type.Fields {
 			edgeFields = append(
 				edgeFields,
@@ -172,10 +176,10 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 		edges = append(
 			edges,
 			// if e := request.Options.EdgeName; e != nil
-			jen.If(join(define("e"), chain("request", "Options", text.EntPascal(edge.Name)).Op(";").Id("e").Op("!=").Nil())).Block(
+			jen.If(define("e").Add(chain("request", "Options", text.EntPascal(edge.Name)).Op(";").Id("e").Op("!=").Nil())).Block(
 				chain("query", fmt.Sprintf("With%s", text.EntPascal(edge.Name))).
 					Call(jen.Func().Params(jen.Id("eq").Op("*").Id("ent").Dot(fmt.Sprintf("%sQuery", edge.Type.Name))).Block(
-						chain("eq", "Where").Call(chain("entproto", "Selectors").Index(chain("predicate", edge.Type.Name)).Call(edgeFields...).Op("...")),
+						chain("eq", "Where").Call(jen.Qual(pkgEntproto, "Selectors").Index(chain("predicate", edge.Type.Name)).Add(calls(edgeFields...)).Op("...")),
 					)),
 			),
 		)
@@ -183,37 +187,19 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 
 	s.serviceFunc(file, "List", node.Name).
 		Block(
-			jen.Id("conditions").Op(":=").Qual(entproto, "Selectors").Index(
+			jen.Id("conditions").Op(":=").Qual(pkgEntproto, "Selectors").Index(
 				jen.Qual(path.Join(s.entPackage, "predicate"), node.Name),
-			).Call(fields...),
+			).Add(calls(fields...)),
 			jen.Id("query").Op(":=").Id("s").Op(".").Id("client").Op(".").Id("Query").Call(),
 			jen.Id("query").Op("=").Id("query").Op(".").Id("Where").Call(jen.Id("conditions").Op("...")),
 
 			jen.Line(),
 			&edges,
 			jen.Line(),
-			//jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
-			//	jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
-			//		jen.Case(jen.Op("*").Qual(entproto, "Paginator_Classical")),
-			//		assign("query").Id("query").
-			//			Dot("Order").Call(chain("page", "Classical", "OrderSelector").Call()).
-			//			Dot("Offset").Call(jen.Int().Call(
-			//			jen.Id("page").Dot("Classical").Dot("GetLimit()").Op("*").Call(jen.Id("page").Dot("Classical").Dot("GetPage()").Op("-").Id("1")),
-			//		)).
-			//			Dot("Limit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
-			//		jen.Case(jen.Op("*").Qual(entproto, "Paginator_Infinite")),
-			//		assign("query").Id("query").
-			//			Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ByID").Call()).
-			//			Dot("Limit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
-			//		jen.If(define("sequence").Id("page").Dot("Infinite").Dot("GetSequence()").Op(";").Id("sequence").Op(">").Id("0")).Block(
-			//			assign("query").Id("query").Dot("Where").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "IDLT").Call(
-			//				jen.Int().Call(chain("page", "Infinite", "GetSequence()")),
-			//			)),
-			//		),
-			//	),
-			//),
+
+			s.buildOrder(node.Name),
+
 			s.buildPaginator(node.Name),
-			jen.Line(),
 
 			jen.List(jen.Id("data"), jen.Id("err")).Op(":=").Id("query").Op(".").Id("All").Call(jen.Id("ctx")),
 			jen.If(jen.Id("err").Op("!=").Id("nil")).Block(
@@ -231,12 +217,11 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 
 func (s *ServiceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 	for _, edge := range node.Edges {
-		var fields []jen.Code
+		var fields []*jen.Statement
 		for _, v := range edge.Type.Fields {
-			code := chain("request", "Options", text.ProtoPascal(v.Name), "Selector").Call(
+			fields = append(fields, chain("request", "Options", text.ProtoPascal(v.Name), "Selector").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(edge.Type.Name)), fmt.Sprintf("Field%s", text.EntPascal(v.Name))),
-			)
-			fields = append(fields, code)
+			))
 		}
 		file.Func().Op("(").Id("s").Op("*").Id(fmt.Sprintf("%sService", node.Name)).Op(")").Id(fmt.Sprintf("List%s", text.ProtoPascal(edge.Name))).
 			Params(
@@ -250,9 +235,10 @@ func (s *ServiceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 			define("query").Id("s").Dot("client").Dot("Query").Call().Dot("Where").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(jen.Int().Call(chain("request", node.Name+"Id"))),
 			).Dot(fmt.Sprintf("Query%s", text.EntPascal(edge.Name))).Call().Dot("Where").Call(
-				jen.Qual(entproto, "Selectors").Index(jen.Qual(path.Join(s.entPackage, "predicate"), edge.Type.Name)).Call(fields...).Op("..."),
+				jen.Qual(pkgEntproto, "Selectors").Index(jen.Qual(path.Join(s.entPackage, "predicate"), edge.Type.Name)).Add(calls(fields...)).Op("..."),
 			),
 			file.Line(),
+			s.buildOrder(edge.Type.Name),
 			s.buildPaginator(edge.Type.Name),
 			s.buildListResponse(edge.Type.Name, fmt.Sprintf("List%sResponse", edge.Type.Name)),
 		)
@@ -274,24 +260,24 @@ func (s *ServiceBuilder) serviceFunc(file *jen.File, method string, name string)
 func (s *ServiceBuilder) buildPaginator(name string) jen.Code {
 	return jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
 		jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
-			jen.Case(jen.Op("*").Qual(entproto, "Paginator_Classical")),
+			jen.Case(jen.Op("*").Qual(pkgEntproto, "Paginator_Classical")),
 			assign("query").Id("query").
 				Dot("Order").Call(chain("page", "Classical", "OrderSelector").Call()).
-				Dot("Offset").Call(jen.Int().Call(
+				Dot("\nOffset").Call(jen.Int().Call(
 				jen.Id("page").Dot("Classical").Dot("GetLimit()").Op("*").Call(jen.Id("page").Dot("Classical").Dot("GetPage()").Op("-").Id("1")),
 			)).
-				Dot("Limit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
-			jen.Case(jen.Op("*").Qual(entproto, "Paginator_Infinite")),
+				Dot("\nLimit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
+			jen.Case(jen.Op("*").Qual(pkgEntproto, "Paginator_Infinite")),
 			assign("query").Id("query").
 				Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(name)), "ByID").Call()).
-				Dot("Limit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
+				Dot("\nLimit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
 			jen.If(define("sequence").Id("page").Dot("Infinite").Dot("GetSequence()").Op(";").Id("sequence").Op(">").Id("0")).Block(
 				assign("query").Id("query").Dot("Where").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(name)), "IDLT").Call(
 					jen.Int().Call(chain("page", "Infinite", "GetSequence()")),
 				)),
 			),
 		),
-	)
+	).Line()
 }
 
 func (s *ServiceBuilder) buildListResponse(name, response string) *jen.Statement {
@@ -309,4 +295,45 @@ func (s *ServiceBuilder) buildListResponse(name, response string) *jen.Statement
 			jen.Id("nil")),
 	}
 	return &codes
+}
+
+func (s *ServiceBuilder) orderMapping(file *jen.File, node *gen.Type) *jen.Statement {
+	mapName := fmt.Sprintf("%sOrderFields", strcase.ToLowerCamel(node.Name))
+
+	byID := fmt.Sprintf("%sOrder_%s_ORDER_BY_ID", node.Name, strcase.ToScreamingSnake(node.Name))
+	var fields = []jen.Code{
+		jen.Qual(s.protoPackage, byID).Op(":").Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "FieldID").Op(","),
+	}
+	for _, v := range node.Fields {
+		opts, err := entproto.GetFieldOptions(v.Annotations)
+		if err != nil {
+			panic(err)
+		}
+		if !opts.Orderable {
+			continue
+		}
+		enumName := fmt.Sprintf("%sOrder_%s_ORDER_BY_%s", node.Name, strcase.ToScreamingSnake(node.Name), strcase.ToScreamingSnake(v.Name))
+		fields = append(
+			fields,
+			jen.Qual(s.protoPackage, enumName).Op(":").Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), fmt.Sprintf("Field%s", text.EntPascal(v.Name))).Op(","),
+		)
+	}
+
+	return file.Var().Id(mapName).Op("=").
+		Map(jen.Qual(s.protoPackage, fmt.Sprintf("%sOrder", node.Name))).String().Block(fields...)
+}
+
+func (s *ServiceBuilder) buildOrder(name string) *jen.Statement {
+	return jen.For(define("_", "order").Range().Add(chain("request", "GetOrders()"))).Block(
+		jen.If(jen.Id("order").Op("==").Nil()).Block(jen.Continue()),
+		jen.Var().Id("opts").Index().Qual(entsql, "OrderTermOption"),
+		jen.If(chain("order", "GetDesc()")).Block(
+			assign("opts").Append(jen.Id("opts"), jen.Qual(entsql, "OrderDesc()")),
+		),
+		assign("query").Id("query").Dot("Order").Call(
+			jen.Qual(entsql, "OrderByField").Call(
+				jen.Id(fmt.Sprintf("%sOrderFields", strcase.ToLowerCamel(name))).Index(chain("order", "GetBy()")),
+				jen.Id("opts").Op("...")).Dot("ToFunc()"),
+		),
+	).Line()
 }

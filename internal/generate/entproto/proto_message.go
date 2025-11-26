@@ -1,9 +1,10 @@
 package entproto
 
 import (
+	"fmt"
+
 	"entgo.io/ent/entc/gen"
 	"entgo.io/ent/schema/field"
-	"fmt"
 	openapiv3 "github.com/google/gnostic/openapiv3"
 	"github.com/jhump/protoreflect/v2/protobuilder"
 	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"

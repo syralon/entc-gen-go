@@ -1,8 +1,9 @@
 package entproto
 
 import (
-	"entgo.io/ent/entc/gen"
 	"fmt"
+
+	"entgo.io/ent/entc/gen"
 	"github.com/iancoleman/strcase"
 	"github.com/jhump/protoreflect/v2/protobuilder"
 	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"
@@ -28,6 +29,19 @@ func UpdateOptionMessages() ProtoMessageBuilder {
 		WithSingleEdge(true),
 		WithSkipFunc(func(opt entproto.FieldOptions) bool { return opt.Immutable }),
 	)
+}
+
+func ListOrderMessage() ProtoMessageBuildFunc {
+	return func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
+		orderEnum := ctx.GetEnum(protoreflect.Name(fmt.Sprintf("%sOrder", node.Name)))
+		if orderEnum == nil {
+			return nil, nil, fmt.Errorf("enum %sOrder not found", node.Name)
+		}
+		orderMessage := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("List%sOrder", node.Name))).
+			AddField(protobuilder.NewField("by", protobuilder.FieldTypeEnum(orderEnum))).
+			AddField(protobuilder.NewField("desc", protobuilder.FieldTypeBool()))
+		return []*protobuilder.MessageBuilder{orderMessage}, nil, nil
+	}
 }
 
 func MethodGetMessages() ProtoMessageBuildFunc {
@@ -59,9 +73,11 @@ func MethodListMessages() ProtoMessageBuildFunc {
 		if options == nil {
 			return nil, nil, fmt.Errorf("message %sOptions not found", node.Name)
 		}
+		orderMessage := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("List%sOrder", node.Name)))
 		paginator := protobuilder.FieldTypeImportedMessage((&entpb.Paginator{}).ProtoReflect().Descriptor())
 		request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("List%sRequest", node.Name))).
 			AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options))).
+			AddField(protobuilder.NewField("orders", protobuilder.FieldTypeMessage(orderMessage)).SetRepeated()).
 			AddField(protobuilder.NewField("paginator", paginator))
 		response := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("List%sResponse", node.Name))).
 			AddField(protobuilder.NewField("data", protobuilder.FieldTypeMessage(data)).SetRepeated())
@@ -164,9 +180,12 @@ func MethodListEdgesMessage() ProtoMessageBuildFunc {
 			}
 			paginator := protobuilder.FieldTypeImportedMessage((&entpb.Paginator{}).ProtoReflect().Descriptor())
 
+			orderMessage := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("List%sOrder", ed.Type.Name)))
+
 			request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("List%s%sRequest", node.Name, edgeName))).
 				AddField(protobuilder.NewField(protoreflect.Name(strcase.ToSnake(node.Name)+"_id"), EntityTypeMapping.Mapping(node.IDType.Type))).
 				AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options))).
+				AddField(protobuilder.NewField("orders", protobuilder.FieldTypeMessage(orderMessage)).SetRepeated()).
 				AddField(protobuilder.NewField("paginator", paginator))
 			ms = append(ms, request)
 		}

@@ -316,43 +316,43 @@ paths:
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.page
+                - name: paginator.classical.page
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.limit
+                - name: paginator.classical.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.total
+                - name: paginator.classical.total
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.next
+                - name: paginator.classical.next
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.normal.order.by
+                - name: paginator.classical.order.by
                   in: query
                   schema:
                     type: string
-                - name: paginator.normal.order.desc
+                - name: paginator.classical.order.desc
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.waterfall.sequence
+                - name: paginator.infinite.sequence
                   in: query
                   schema:
                     type: string
-                - name: paginator.waterfall.limit
+                - name: paginator.infinite.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.waterfall.next
+                - name: paginator.infinite.next
                   in: query
                   schema:
                     type: boolean
@@ -707,43 +707,43 @@ paths:
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.page
+                - name: paginator.classical.page
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.limit
+                - name: paginator.classical.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.total
+                - name: paginator.classical.total
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.next
+                - name: paginator.classical.next
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.normal.order.by
+                - name: paginator.classical.order.by
                   in: query
                   schema:
                     type: string
-                - name: paginator.normal.order.desc
+                - name: paginator.classical.order.desc
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.waterfall.sequence
+                - name: paginator.infinite.sequence
                   in: query
                   schema:
                     type: string
-                - name: paginator.waterfall.limit
+                - name: paginator.infinite.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.waterfall.next
+                - name: paginator.infinite.next
                   in: query
                   schema:
                     type: boolean
@@ -1146,43 +1146,43 @@ paths:
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.page
+                - name: paginator.classical.page
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.limit
+                - name: paginator.classical.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.total
+                - name: paginator.classical.total
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.next
+                - name: paginator.classical.next
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.normal.order.by
+                - name: paginator.classical.order.by
                   in: query
                   schema:
                     type: string
-                - name: paginator.normal.order.desc
+                - name: paginator.classical.order.desc
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.waterfall.sequence
+                - name: paginator.infinite.sequence
                   in: query
                   schema:
                     type: string
-                - name: paginator.waterfall.limit
+                - name: paginator.infinite.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.waterfall.next
+                - name: paginator.infinite.next
                   in: query
                   schema:
                     type: boolean
@@ -1643,43 +1643,43 @@ paths:
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.page
+                - name: paginator.classical.page
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.limit
+                - name: paginator.classical.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.total
+                - name: paginator.classical.total
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.normal.next
+                - name: paginator.classical.next
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.normal.order.by
+                - name: paginator.classical.order.by
                   in: query
                   schema:
                     type: string
-                - name: paginator.normal.order.desc
+                - name: paginator.classical.order.desc
                   in: query
                   schema:
                     type: boolean
-                - name: paginator.waterfall.sequence
+                - name: paginator.infinite.sequence
                   in: query
                   schema:
                     type: string
-                - name: paginator.waterfall.limit
+                - name: paginator.infinite.limit
                   in: query
                   schema:
                     type: integer
                     format: int32
-                - name: paginator.waterfall.next
+                - name: paginator.infinite.next
                   in: query
                   schema:
                     type: boolean

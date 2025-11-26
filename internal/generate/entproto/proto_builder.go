@@ -27,6 +27,10 @@ type (
 	}
 	ProtoMethodBuildFunc func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MethodBuilder, error)
 
+	ProtoEnumBuilder interface {
+		Build(_ *FileContext, node *gen.Type) ([]*protobuilder.EnumBuilder, error)
+	}
+
 	Pattern interface {
 		Name() string
 		Rule(prefix string) (*googleapi.HttpRule, error)

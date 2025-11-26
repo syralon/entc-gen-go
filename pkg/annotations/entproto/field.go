@@ -1,9 +1,10 @@
 package entproto
 
 import (
+	"errors"
+
 	"entgo.io/ent/entc"
 	"entgo.io/ent/entc/gen"
-	"errors"
 )
 
 type Filter uint16
@@ -31,6 +32,7 @@ type FieldOptions struct {
 	Immutable  bool
 	Settable   bool
 	Filter     Filter
+	Orderable  bool
 }
 
 type fieldAnnotation struct {
@@ -58,6 +60,7 @@ func WithFieldSettable(settable bool) FieldOption {
 		a.Settable = settable
 	}
 }
+
 func WithFieldFilterable(filterable bool) FieldOption {
 	return func(a *fieldAnnotation) {
 		a.Filterable = filterable
@@ -67,6 +70,12 @@ func WithFieldFilterable(filterable bool) FieldOption {
 func WithFieldVisible(visible bool) FieldOption {
 	return func(a *fieldAnnotation) {
 		a.Visible = visible
+	}
+}
+
+func WithFieldOrderable(orderable bool) FieldOption {
+	return func(a *fieldAnnotation) {
+		a.Orderable = orderable
 	}
 }
 
