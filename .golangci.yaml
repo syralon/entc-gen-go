@@ -1,0 +1,250 @@
+version: "2"
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    # http body 必须 close
+    - bodyclose
+    # 检查过多空白标识符的赋值（e.g. x, , , _, := f()）
+    - dogsled
+    # 禁止结构体内包含 context
+    - containedctx
+    # 依赖包检查，主要是列了一些禁止使用的包，具体内容查看 settings
+    - depguard
+    # time.Duration 检测，使用 time.Duration 时必须显式转换类型
+    # 如：`30*time.Second` => `time.Duration(30)*time.Second`
+    - durationcheck
+    # 检查 error 处理，每一个 error 都必须被处理
+    - errcheck
+    # 检查 error 处理规范
+    # 必须使用 errors.As() 或 errors.Is() 判断 error
+    # 禁止使用 errors.New() 或 fmt.Errorf() 直接创建 error
+    - err113
+    # 自定义 error 类型必须以 Error 结尾，error 变量命名必须以 Err/err 开头
+    - errname
+    # 检测循环和函数中的嵌套上下文，避免context过于臃肿。
+    # 如：在 for 循环内使用 ctx = context.WithValue() 可能导致这个 context 变得非常的臃肿且可能包含无效的嵌套，影响程序性能。
+    - fatcontext
+    # 禁用语法，如：禁止使用 fmt.Print 相关函数打印文本。具体查看 settings
+    - forbidigo
+    # 检查可被常量替换的重复字符串
+    - goconst
+    # 检查函数复杂度，避免过度嵌套
+    - gocyclo
+    # 很泛用的一个go语法及规范检测工具
+    - govet
+    # 检查无效赋值，如变量被赋值但没有使用
+    - ineffassign
+    # 文件单行最大长度
+    - lll
+    # 拼写错误检查
+    - misspell
+    # 数字（魔数）检查，魔数指代码中直接使用的数字，尤其是类型、状态等，直接使用数字意义不明，需要定义为常量方便阅读以及复用。
+    # (默认跳过所有测试文件)
+    - mnd
+    # 禁止函数返回 nil, nil (返回值和 error 都同时为 nil)
+    - nilnil
+    # 预分配内存检查，检查是否存在可以提前分配内存的 slice
+    - prealloc
+    # 另一个比较泛用的 go 语法及规范检测工具
+    - revive
+    # 还是一个很泛用的检测工具
+    - staticcheck
+    # 检查非必要的类型转换
+    - unconvert
+    # 检查未使用的函数参数。要求将未使用的函数参数的变量名改为 `_`
+    - unused
+    # 检查多余的赋值。赋值后未再使用的变量，或多次赋值后再使用的变量
+    - wastedassign
+    # proto message生成的对象，必须使用getter获取字段值
+    - protogetter
+    # 无效空白行检测。检查 `func/if/for` 等代码段内的开始处或结尾处非必要的空行。
+    # 不允许第一行（`func/if/for` 的下一行）是空行，或最后一行（`}`的前一行）是空行
+    - whitespace
+    # 检查结构体每个字段都必须初始化
+    # - exhaustruct
+    - bidichk # 检查 Unicode 双向文本的潜在问题
+    - errorlint # 改进 error 处理的静态分析工具，检测常见的错误处理问题
+    - exhaustive # 检查枚举类型（如 iota 常量组）的 switch 语句是否覆盖了所有可能的情况
+    - gosec # 用于检测 Go 代码中的安全漏洞
+    - nilerr # 检查是否存在错误值被错误地设置为 nil 的情况
+    - nolintlint # 检查代码中的 //nolint 注释是否正确使用
+    - sqlclosecheck # 检查 SQL 查询结果集和语句是否正确关闭
+    - asasalint # 可能是用于检查错误断言相关的工具（具体需查看对应文档）
+    - cyclop # 检查函数的圈复杂度，避免函数过于复杂
+    - forcetypeassert # 检测强制类型断言，建议使用类型断言的安全形式
+    - gocognit # 测量代码的认知复杂度，帮助评估代码的可维护性
+    - makezero # 检查是否可以使用 make 函数预分配零值的 slice、map 或 channel
+    - mirror # 可能是用于代码镜像或检查的工具（具体需查看对应文档）
+    - noctx # 检查代码中是否存在不必要的 context 使用
+    - reassign # 检查变量是否被重复赋值，可能存在逻辑错误
+    - unparam # 检查函数中未使用的参数，建议将其移除或重命名为 _
+    - contextcheck # 检查 context 的使用是否符合规范
+#    - dupl # 检测代码中的重复代码块
+    - errchkjson # 检查 JSON 编解码操作中的错误处理
+    # - gochecknoglobals # 禁止代码中使用全局变量
+    - gochecknoinits # 禁止代码中使用 init 函数
+    - gocritic # 提供一系列 Go 代码的静态分析检查规则
+#    - godox # 检查代码中的 TODO、FIXME 等注释
+    - gomodguard # 检查 Go 模块的依赖是否符合规范
+    - usestdlibvars # 检查是否使用了标准库中的变量替代自定义实现
+    - gocheckcompilerdirectives # 检查编译器指令（如 //go:build）是否正确使用
+    - grouper # 可能是用于代码分组或格式化的工具（具体需查看对应文档）
+    - importas # 检查导入包的别名是否符合规范
+    - loggercheck # 检查日志记录的使用是否符合规范
+    - nakedret # 检查是否存在裸返回（函数中没有显式返回值）的情况
+    - nosprintfhostport # 检查是否正确使用了格式化主机和端口的函数
+    # - paralleltest # 检查测试函数是否可以并行执行
+    - thelper # 可能是用于测试辅助函数检查的工具（具体需查看对应文档）
+    - tparallel # 检查测试函数是否正确使用了并行执行的特性
+  settings:
+    # 枚举值检查
+    exhaustive:
+      # 当使用了default时允许case中不列出所有枚举值
+      default-signifies-exhaustive: true
+    cyclop:
+      # The maximal code complexity to report.
+      # Default: 10
+      max-complexity: 20
+    gocyclo:
+      # 默认30，但 golangci-lint 推荐设置 10到20
+      min-complexity: 20
+    lll:
+      line-length: 180
+    gosec:
+      # 忽略的检查项
+      excludes:
+        # 检查数值类型强制转换可能溢出的问题（如 int64->int32）
+        - G115
+    misspell:
+      locale: US
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - operation
+        - return
+        - assign
+      # 忽略以下数字
+      ignored-numbers:
+        - '0666'
+        - '0755'
+        - '0777'
+        - '0744'
+      # 忽略以下函数参数中的数字（正则匹配）。
+      # 这些函数默认会忽略参数中直接使用的数字：`time.Date`, `strconv.FormatInt`, `strconv.FormatUint`, `strconv.FormatFloat`,
+      # `strconv.ParseInt`, `strconv.ParseUint`, `strconv.ParseFloat`.
+      ignored-functions:
+        - '^math\.'
+    depguard:
+      rules:
+        std:
+          list-mode: lax
+          deny:
+            - pkg: "^log$"
+              desc: "use log/slog instead"
+            - pkg: "io/ioutil"
+              desc: "use io instead"
+            - pkg: "golang.org/x/net/context"
+              desc: "use context in stdlib instead"
+            - pkg: "github.com/google/grpc"
+              desc: "use google.golang.org/grpc instead"
+    forbidigo:
+      forbid:
+        - pattern: ^(fmt\\.Print(|f|ln)|print|println)$
+          msg: "use slog.Info instead fmt.Print*"
+    staticcheck:
+      checks:
+        - all
+        # Invalid struct tag
+        - "-SA5008"
+    exhaustruct:
+      # List of regular expressions to match type names that should be processed.
+      # Anonymous structs can be matched by '<anonymous>' alias.
+      #
+      # Each regular expression must match the full type name, including package path.
+      # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
+      # but not `http\.Cookie`.
+      # Default: []
+      #include:
+      #  - '.+\.Test'
+      #  - 'example\.com/package\.ExampleStruct[\d]{1,2}'
+      # List of regular expressions to match type names that should be excluded from processing.
+      # Anonymous structs can be matched by '<anonymous>' alias.
+      # Has precedence over `include`.
+      # Each regular expression must match the full type name, including package path.
+      # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
+      # but not `http\.Cookie`.
+      # Default: []
+      #exclude:
+      #  - '.+/cobra\.Command$'
+      # Allows empty structures, effectively excluding them from the check.
+      # Default: false
+      #allow-empty: true
+      # List of regular expressions to match type names that should be allowed to be empty.
+      # Anonymous structs can be matched by '<anonymous>' alias.
+      # Each regular expression must match the full type name, including package path.
+      # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
+      # but not `http\.Cookie`.
+      # Default: []
+      #allow-empty-rx:
+      #  - '.*/http\.Cookie'
+      # Allows empty structures in return statements.
+      # Default: false
+      #allow-empty-returns: true
+      # Allows empty structures in variable declarations.
+      # Default: false
+      #allow-empty-declarations: true
+  # 排除文件，以下规则的文件会跳过lint
+  exclusions:
+    # 针对自动生成文件的检测规则
+    # lax: 宽松，代码注释行包含以下内容的文件视为自动生成文件并跳过 lint： `autogenerated file`, `code generated`, `do not edit`
+    # strict: 严格，文件的第一行必须为注释且匹配以下正则才视为自动生成代码并跳过lint：`^// Code generated .* DO NOT EDIT\.$`
+    # disable：不跳过自动生成代码的lint
+    generated: lax
+    # golangci-lint 预设的排除规则
+    # https://golangci-lint.run/usage/false-positives/#exclusion-presets
+    presets:
+      - comments
+#      - common-false-positives
+#      - legacy
+#      - std-error-handling
+    # 自定义排除规则
+    rules:
+      # test文件内忽略 goconst，dupl 检测
+      - path: (.+)_test\.go
+        linters:
+          - goconst
+          - dupl
+          - protogetter
+
+    # 以下路径忽略lint检测
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+# 代码格式化
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - gci
+  settings:
+    gci:
+#      sections:
+#        - standard
+#        - default
+#        - localmodule
+#      custom-order: true
+
+  # 排除规则
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

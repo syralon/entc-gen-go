@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+package syralon.entproto;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/syralon/entc-gen-go/proto/syralon/entproto;entproto";
+
+message Int32List {
+  repeated int32 list = 1;
+}
+
+message Int64List {
+  repeated int64 list = 1;
+}
+
+message Uint32List {
+  repeated uint32 list = 1;
+}
+
+message Uint64List {
+  repeated uint64 list = 1;
+}
+
+message FloatList {
+  repeated float list = 1;
+}
+
+message DoubleList {
+  repeated double list = 1;
+}
+
+message BoolList {
+  repeated bool list = 1;
+}
+
+message StringList {
+  repeated string list = 1;
+}
+
+message TimestampList {
+  repeated google.protobuf.Timestamp list = 1;
+}
+
+message DurationList {
+  repeated google.protobuf.Duration list = 1;
+}
+
+message BytesList {
+  repeated bytes list = 1;
+}
+
+message Int32Field {
+  oneof operator {
+    int32 eq = 1;
+    int32 ne = 2;
+    int32 gt = 3;
+    int32 gte = 4;
+    int32 lt = 5;
+    int32 lte = 6;
+    Int32List between = 7;
+    Int32List in = 8;
+    Int32List not_in = 9;
+  }
+}
+
+message Int64Field {
+  oneof operator {
+    int64 eq = 1;
+    int64 ne = 2;
+    int64 gt = 3;
+    int64 gte = 4;
+    int64 lt = 5;
+    int64 lte = 6;
+    Int64List between = 7;
+    Int64List in = 8;
+    Int64List not_in = 9;
+  }
+}
+
+message Uint32Field {
+  oneof operator {
+    uint32 eq = 1;
+    uint32 ne = 2;
+    uint32 gt = 3;
+    uint32 gte = 4;
+    uint32 lt = 5;
+    uint32 lte = 6;
+    Uint32List between = 7;
+    Uint32List in = 8;
+    Uint32List not_in = 9;
+  }
+}
+
+message Uint64Field {
+  oneof operator {
+    uint64 eq = 1;
+    uint64 ne = 2;
+    uint64 gt = 3;
+    uint64 gte = 4;
+    uint64 lt = 5;
+    uint64 lte = 6;
+    Uint64List between = 7;
+    Uint64List in = 8;
+    Uint64List not_in = 9;
+  }
+}
+
+message FloatField {
+  oneof operator {
+    float eq = 1;
+    float ne = 2;
+    float gt = 3;
+    float gte = 4;
+    float lt = 5;
+    float lte = 6;
+    FloatList between = 7;
+    FloatList in = 8;
+    FloatList not_in = 9;
+  }
+}
+
+message DoubleField {
+  oneof operator {
+    double eq = 1;
+    double ne = 2;
+    double gt = 3;
+    double gte = 4;
+    double lt = 5;
+    double lte = 6;
+    DoubleList between = 7;
+    DoubleList in = 8;
+    DoubleList not_in = 9;
+  }
+}
+
+message BoolField {
+  oneof operator {
+    bool eq = 1;
+    bool ne = 2;
+  }
+}
+
+message StringField {
+  oneof operator {
+    string eq = 1;
+    string ne = 2;
+    string gt = 3;
+    string gte = 4;
+    string lt = 5;
+    string lte = 6;
+    StringList between = 7;
+    StringList in = 8;
+    StringList not_in = 9;
+    string eq_fold = 10;
+    string contains = 11;
+    string has_prefix = 12;
+    string has_suffix = 13;
+    string like = 14;
+  }
+}
+
+message TimestampField {
+  oneof operator {
+    google.protobuf.Timestamp eq = 1;
+    google.protobuf.Timestamp ne = 2;
+    google.protobuf.Timestamp gt = 3;
+    google.protobuf.Timestamp gte = 4;
+    google.protobuf.Timestamp lt = 5;
+    google.protobuf.Timestamp lte = 6;
+    TimestampList between = 7;
+  }
+}
+
+enum PRECISION {
+  MILLISECOND = 0;
+  SECOND = 1;
+  MINUTE = 2;
+  HOUR = 3;
+  DAY = 4;
+}
+
+message DurationField {
+  PRECISION precision = 1;
+  oneof operator {
+    google.protobuf.Duration eq = 2;
+    google.protobuf.Duration ne = 3;
+    google.protobuf.Duration gt = 4;
+    google.protobuf.Duration gte = 5;
+    google.protobuf.Duration lt = 6;
+    google.protobuf.Duration lte = 7;
+    DurationList between = 8;
+  }
+}
+
+message BytesField {
+  oneof operator {
+    bytes eq = 1;
+    bytes ne = 2;
+  }
+}

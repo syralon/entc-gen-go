@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package syralon.entproto;
+
+option go_package = "github.com/syralon/entc-gen-go/proto/syralon/entproto;entproto";
+
+message Order {
+  string by = 1;
+  bool desc = 2;
+}
+
+message ClassicalPaginator {
+  int32 page = 1;
+  int32 limit = 2;
+  int32 total = 3;
+  bool next = 4;
+  Order order = 5;
+}
+
+message InfinitePaginator {
+  int64 sequence = 1;
+  int32 limit = 2;
+  bool next = 3;
+}
+
+message Paginator {
+  oneof paginator {
+    ClassicalPaginator classical = 1;
+    InfinitePaginator infinite = 2;
+  }
+}
