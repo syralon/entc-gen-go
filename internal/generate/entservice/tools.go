@@ -38,6 +38,12 @@ func calls(codes ...*jen.Statement) *jen.Statement {
 	return st.Op(")")
 }
 
-func lf() *jen.Statement {
-	return jen.Id("\n")
+func ifErr() *jen.Statement {
+	return jen.If(jen.Id("err").Op("!=").Id("nil")).Block(
+		jen.Return(jen.Id("nil"), jen.Id("err")),
+	)
+}
+
+func structPtr(name, key, val *jen.Statement) *jen.Statement {
+	return jen.Op("&").Add(name).Op("{").Add(key).Op(":").Add(val).Op("}")
 }

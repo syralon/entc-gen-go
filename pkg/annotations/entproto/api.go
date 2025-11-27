@@ -42,7 +42,7 @@ func (a APIMethod) Rule(prefix string) (*googleapi.HttpRule, error) {
 		rule.Pattern = &googleapi.HttpRule_Post{Post: prefix}
 		rule.Body = "*"
 	case APIUpdate:
-		rule.Pattern = &googleapi.HttpRule_Post{Post: path.Join(prefix, "{id}")}
+		rule.Pattern = &googleapi.HttpRule_Put{Put: path.Join(prefix, "{id}")}
 		rule.Body = "*"
 	case APIDelete:
 		rule.Pattern = &googleapi.HttpRule_Delete{Delete: path.Join(prefix, "{id}")}

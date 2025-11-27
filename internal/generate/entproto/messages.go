@@ -21,13 +21,14 @@ func OptionMessages() ProtoMessageBuilder {
 	)
 }
 
-func UpdateOptionMessages() ProtoMessageBuilder {
+func UpdateMessages() ProtoMessageBuilder {
 	return NewMessage(
-		WithFormatName("%sUpdateOptions"),
-		WithTypeMapping(OperationTypeMapping),
+		WithFormatName("%sUpdate"),
+		WithTypeMapping(EntityTypeMapping),
 		WithForceOptional(true),
 		WithSingleEdge(true),
 		WithSkipFunc(func(opt entproto.FieldOptions) bool { return opt.Immutable }),
+		WithSkipID(true),
 	)
 }
 
@@ -110,13 +111,13 @@ func MethodUpdateMessages() ProtoMessageBuildFunc {
 		if err != nil || opt.Method&entproto.APIUpdate == 0 {
 			return nil, nil, err
 		}
-		options := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("%sUpdateOptions", node.Name)))
+		options := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("%sUpdate", node.Name)))
 		if options == nil {
-			return nil, nil, fmt.Errorf("message %sUpdateOptions not found", node.Name)
+			return nil, nil, fmt.Errorf("message %sUpdate not found", node.Name)
 		}
 		request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Update%sRequest", node.Name))).
 			AddField(protobuilder.NewField("id", EntityTypeMapping.Mapping(node.IDType.Type))).
-			AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options)))
+			AddField(protobuilder.NewField("update", protobuilder.FieldTypeMessage(options)))
 		response := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Update%sResponse", node.Name)))
 		return []*protobuilder.MessageBuilder{request, response}, nil, nil
 	}
@@ -155,9 +156,9 @@ func MethodSetMessages() ProtoMessageBuildFunc {
 				continue
 			}
 			request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Set%s%sRequest", node.Name, strcase.ToCamel(field.Name)))).
-				AddField(protobuilder.NewField(protoreflect.Name(strcase.ToSnake(node.Name)+"_id"), EntityTypeMapping.Mapping(node.IDType.Type))).
+				AddField(protobuilder.NewField("id", EntityTypeMapping.Mapping(node.IDType.Type))).
 				AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options))).
-				AddField(protobuilder.NewField("set", EntityTypeMapping.Mapping(field.Type.Type)))
+				AddField(protobuilder.NewField(protoreflect.Name(field.Name), EntityTypeMapping.Mapping(field.Type.Type)))
 			response := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Set%s%sResponse", node.Name, strcase.ToCamel(field.Name)))).
 				AddField(protobuilder.NewField("rows", protobuilder.FieldTypeInt32()))
 			ms = append(ms, request, response)
@@ -183,7 +184,7 @@ func MethodListEdgesMessage() ProtoMessageBuildFunc {
 			orderMessage := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("List%sOrder", ed.Type.Name)))
 
 			request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("List%s%sRequest", node.Name, edgeName))).
-				AddField(protobuilder.NewField(protoreflect.Name(strcase.ToSnake(node.Name)+"_id"), EntityTypeMapping.Mapping(node.IDType.Type))).
+				AddField(protobuilder.NewField("id", EntityTypeMapping.Mapping(node.IDType.Type))).
 				AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options))).
 				AddField(protobuilder.NewField("orders", protobuilder.FieldTypeMessage(orderMessage)).SetRepeated()).
 				AddField(protobuilder.NewField("paginator", paginator))

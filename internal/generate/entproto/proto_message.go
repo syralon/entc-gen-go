@@ -73,6 +73,11 @@ func WithSingleEdge(b bool) MessageBuildOption {
 		builder.singleEdge = b
 	}
 }
+func WithSkipID(b bool) MessageBuildOption {
+	return func(builder *messages) {
+		builder.skipID = b
+	}
+}
 
 type messages struct {
 	nameFunc      func(node *gen.Type) protoreflect.Name
@@ -82,12 +87,15 @@ type messages struct {
 	skipImmutable bool
 	skip          func(opt entproto.FieldOptions) bool
 	singleEdge    bool
+	skipID        bool
 }
 
 func (m *messages) Build(_ *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
 	name := m.nameFunc(node)
 	mb := protobuilder.NewMessage(name)
-	mb.AddField(protobuilder.NewField("id", m.mapping.Mapping(node.IDType.Type)))
+	if !m.skipID {
+		mb.AddField(protobuilder.NewField("id", m.mapping.Mapping(node.IDType.Type)))
+	}
 	if err := m.fields(mb, node); err != nil {
 		return nil, nil, err
 	}

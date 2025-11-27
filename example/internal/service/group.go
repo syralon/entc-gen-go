@@ -50,9 +50,7 @@ func (s *GroupService) Get(ctx context.Context, request *pb.GetGroupRequest) (*p
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetGroupResponse{
-		Data: GroupToProto(data),
-	}, nil
+	return &pb.GetGroupResponse{Data: GroupToProto(data)}, nil
 }
 
 func (s *GroupService) List(ctx context.Context, request *pb.ListGroupRequest) (*pb.ListGroupResponse, error) {
@@ -106,13 +104,11 @@ func (s *GroupService) List(ctx context.Context, request *pb.ListGroupRequest) (
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ListGroupResponse{
-		Data: Trans(data, GroupToProto),
-	}, nil
+	return &pb.ListGroupResponse{Data: Trans(data, GroupToProto)}, nil
 }
 
 func (s *GroupService) ListGroupUsers(ctx context.Context, request *pb.ListGroupGroupUsersRequest) (*pb.ListUserResponse, error) {
-	query := s.client.Query().Where(group.ID(int(request.GroupId))).QueryGroupUsers().Where(entproto.Selectors[predicate.User](
+	query := s.client.Query().Where(group.ID(int(request.Id))).QueryGroupUsers().Where(entproto.Selectors[predicate.User](
 		request.Options.Name.Selector(user.FieldName),
 		request.Options.CreatedAt.Selector(user.FieldCreatedAt),
 		request.Options.UpdatedAt.Selector(user.FieldUpdatedAt),
@@ -150,7 +146,36 @@ func (s *GroupService) ListGroupUsers(ctx context.Context, request *pb.ListGroup
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ListUserResponse{
-		Data: Trans(data, UserToProto),
-	}, nil
+	return &pb.ListUserResponse{Data: Trans(data, UserToProto)}, nil
+}
+
+func (s *GroupService) Create(ctx context.Context, request *pb.CreateGroupRequest) (*pb.CreateGroupResponse, error) {
+	create := s.client.Create().
+		SetName(request.GetName())
+	data, err := create.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CreateGroupResponse{Id: int64(data.ID)}, nil
+}
+
+func (s *GroupService) Update(ctx context.Context, request *pb.UpdateGroupRequest) (*pb.UpdateGroupResponse, error) {
+	update := s.client.UpdateOneID(int(request.GetId()))
+	if request.GetUpdate().Name != nil {
+		update.SetName(request.GetUpdate().GetName())
+	}
+
+	_, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.UpdateGroupResponse{}, nil
+}
+
+func (s *GroupService) Delete(ctx context.Context, request *pb.DeleteGroupRequest) (*pb.DeleteGroupResponse, error) {
+	err := s.client.DeleteOneID(int(request.GetId())).Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.DeleteGroupResponse{}, nil
 }

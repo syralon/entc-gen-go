@@ -29,7 +29,7 @@ func NewGRPCBuilder(filename, pkg, goPkg string) ProtoFileBuilder {
 		WithEnumBuilder(&orderEnumBuilder{}),
 		WithMessageBuilder(
 			OptionMessages(),
-			UpdateOptionMessages(),
+			UpdateMessages(),
 			ListOrderMessage(),
 			MethodGetMessages(),
 			MethodListMessages(),

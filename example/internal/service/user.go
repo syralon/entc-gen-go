@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-
 	sql "entgo.io/ent/dialect/sql"
 	ent "github.com/syralon/entc-gen-go/example/ent"
 	group "github.com/syralon/entc-gen-go/example/ent/group"
@@ -55,9 +54,7 @@ func (s *UserService) Get(ctx context.Context, request *pb.GetUserRequest) (*pb.
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetUserResponse{
-		Data: UserToProto(data),
-	}, nil
+	return &pb.GetUserResponse{Data: UserToProto(data)}, nil
 }
 
 func (s *UserService) List(ctx context.Context, request *pb.ListUserRequest) (*pb.ListUserResponse, error) {
@@ -111,13 +108,11 @@ func (s *UserService) List(ctx context.Context, request *pb.ListUserRequest) (*p
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ListUserResponse{
-		Data: Trans(data, UserToProto),
-	}, nil
+	return &pb.ListUserResponse{Data: Trans(data, UserToProto)}, nil
 }
 
 func (s *UserService) ListUserGroups(ctx context.Context, request *pb.ListUserUserGroupsRequest) (*pb.ListGroupResponse, error) {
-	query := s.client.Query().Where(user.ID(int(request.UserId))).QueryUserGroups().Where(entproto.Selectors[predicate.Group](
+	query := s.client.Query().Where(user.ID(int(request.Id))).QueryUserGroups().Where(entproto.Selectors[predicate.Group](
 		request.Options.Name.Selector(group.FieldName),
 		request.Options.CreatedAt.Selector(group.FieldCreatedAt),
 		request.Options.UpdatedAt.Selector(group.FieldUpdatedAt),
@@ -153,7 +148,60 @@ func (s *UserService) ListUserGroups(ctx context.Context, request *pb.ListUserUs
 	if err != nil {
 		return nil, err
 	}
-	return &pb.ListGroupResponse{
-		Data: Trans(data, GroupToProto),
-	}, nil
+	return &pb.ListGroupResponse{Data: Trans(data, GroupToProto)}, nil
+}
+
+func (s *UserService) Create(ctx context.Context, request *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
+	create := s.client.Create().
+		SetName(request.GetName()).
+		SetGroupID(request.GetGroupId()).
+		SetStatus(request.GetStatus())
+	data, err := create.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CreateUserResponse{Id: int64(data.ID)}, nil
+}
+
+func (s *UserService) Update(ctx context.Context, request *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
+	update := s.client.UpdateOneID(int(request.GetId()))
+	if request.GetUpdate().Name != nil {
+		update.SetName(request.GetUpdate().GetName())
+	}
+	if request.GetUpdate().GroupId != nil {
+		update.SetGroupID(request.GetUpdate().GetGroupId())
+	}
+	if request.GetUpdate().Status != nil {
+		update.SetStatus(request.GetUpdate().GetStatus())
+	}
+
+	_, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.UpdateUserResponse{}, nil
+}
+
+func (s *UserService) SetGroupId(ctx context.Context, request *pb.SetUserGroupIdRequest) (*pb.SetUserGroupIdResponse, error) {
+	_, err := s.client.UpdateOneID(int(request.GetId())).SetGroupID(request.GetGroupId()).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SetUserGroupIdResponse{}, nil
+}
+
+func (s *UserService) SetStatus(ctx context.Context, request *pb.SetUserStatusRequest) (*pb.SetUserStatusResponse, error) {
+	_, err := s.client.UpdateOneID(int(request.GetId())).SetStatus(request.GetStatus()).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.SetUserStatusResponse{}, nil
+}
+
+func (s *UserService) Delete(ctx context.Context, request *pb.DeleteUserRequest) (*pb.DeleteUserResponse, error) {
+	err := s.client.DeleteOneID(int(request.GetId())).Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.DeleteUserResponse{}, nil
 }

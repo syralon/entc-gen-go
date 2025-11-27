@@ -44,7 +44,7 @@ func MethodSet() ProtoMethodBuildFunc {
 				protobuilder.RpcTypeMessage(response, false),
 			)
 			if apiOpt.Pattern != "" {
-				pattern := path.Join(apiOpt.Pattern, strings.ToLower(node.Name), fmt.Sprintf("{%s_id}", strcase.ToSnake(node.Name)), strings.ToLower(field.Name))
+				pattern := path.Join(apiOpt.Pattern, strings.ToLower(node.Name), "{id}", strings.ToLower(field.Name))
 				rule := &googleapi.HttpRule{Pattern: &googleapi.HttpRule_Put{Put: pattern}, Body: "*"}
 				properties := &descriptor.MethodOptions{}
 				proto.SetExtension(properties, googleapi.E_Http, rule)
@@ -86,7 +86,7 @@ func MethodListEdges() ProtoMethodBuildFunc {
 				pattern := path.Join(
 					apiOpt.Pattern,
 					strings.ToLower(node.Name),
-					fmt.Sprintf("{%s_id}", strcase.ToSnake(node.Name)),
+					"{id}",
 					strings.ToLower(strcase.ToCamel(ed.Name)),
 				)
 				rule := &googleapi.HttpRule{Pattern: &googleapi.HttpRule_Get{Get: pattern}}

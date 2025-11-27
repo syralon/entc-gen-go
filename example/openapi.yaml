@@ -392,13 +392,89 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
-    /v1/group/{groupId}/groupusers:
+    /v1/group/{id}:
+        get:
+            tags:
+                - GroupService
+            operationId: GroupService_Get
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetGroupResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        put:
+            tags:
+                - GroupService
+            operationId: GroupService_Update
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateGroupRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateGroupResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+        delete:
+            tags:
+                - GroupService
+            operationId: GroupService_Delete
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DeleteGroupResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /v1/group/{id}/groupusers:
         get:
             tags:
                 - GroupService
             operationId: GroupService_ListGroupUsers
             parameters:
-                - name: groupId
+                - name: id
                   in: path
                   required: true
                   schema:
@@ -754,82 +830,6 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/ListUserResponse'
-                default:
-                    description: Default error response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Status'
-    /v1/group/{id}:
-        get:
-            tags:
-                - GroupService
-            operationId: GroupService_Get
-            parameters:
-                - name: id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/GetGroupResponse'
-                default:
-                    description: Default error response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Status'
-        post:
-            tags:
-                - GroupService
-            operationId: GroupService_Update
-            parameters:
-                - name: id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/UpdateGroupRequest'
-                required: true
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/UpdateGroupResponse'
-                default:
-                    description: Default error response
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/Status'
-        delete:
-            tags:
-                - GroupService
-            operationId: GroupService_Delete
-            parameters:
-                - name: id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-            responses:
-                "200":
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/DeleteGroupResponse'
                 default:
                     description: Default error response
                     content:
@@ -1246,7 +1246,7 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
-        post:
+        put:
             tags:
                 - UserService
             operationId: UserService_Update
@@ -1298,13 +1298,43 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
-    /v1/user/{userId}/status:
+    /v1/user/{id}/group_id:
+        put:
+            tags:
+                - UserService
+            operationId: UserService_SetGroupId
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SetUserGroupIdRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SetUserGroupIdResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /v1/user/{id}/status:
         put:
             tags:
                 - UserService
             operationId: UserService_SetStatus
             parameters:
-                - name: userId
+                - name: id
                   in: path
                   required: true
                   schema:
@@ -1328,13 +1358,13 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
-    /v1/user/{userId}/usergroups:
+    /v1/user/{id}/usergroups:
         get:
             tags:
                 - UserService
             operationId: UserService_ListUserGroups
             parameters:
-                - name: userId
+                - name: id
                   in: path
                   required: true
                   schema:
@@ -1804,15 +1834,13 @@ components:
                     $ref: '#/components/schemas/TimestampField'
                 groupUsers:
                     $ref: '#/components/schemas/UserOptions'
-        GroupUpdateOptions:
+        GroupUpdate:
             type: object
             properties:
-                id:
-                    $ref: '#/components/schemas/Int64Field'
                 name:
-                    $ref: '#/components/schemas/StringField'
+                    type: string
                 groupUsers:
-                    $ref: '#/components/schemas/UserUpdateOptions'
+                    $ref: '#/components/schemas/UserUpdate'
         Int32Field:
             type: object
             properties:
@@ -1890,14 +1918,29 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/User'
-        SetUserStatusRequest:
+        SetUserGroupIdRequest:
             type: object
             properties:
-                userId:
+                id:
                     type: string
                 options:
                     $ref: '#/components/schemas/UserOptions'
-                set:
+                groupId:
+                    type: string
+        SetUserGroupIdResponse:
+            type: object
+            properties:
+                rows:
+                    type: integer
+                    format: int32
+        SetUserStatusRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                options:
+                    $ref: '#/components/schemas/UserOptions'
+                status:
                     type: integer
                     format: int32
         SetUserStatusResponse:
@@ -1996,8 +2039,8 @@ components:
             properties:
                 id:
                     type: string
-                options:
-                    $ref: '#/components/schemas/GroupUpdateOptions'
+                update:
+                    $ref: '#/components/schemas/GroupUpdate'
         UpdateGroupResponse:
             type: object
             properties: {}
@@ -2006,8 +2049,8 @@ components:
             properties:
                 id:
                     type: string
-                options:
-                    $ref: '#/components/schemas/UserUpdateOptions'
+                update:
+                    $ref: '#/components/schemas/UserUpdate'
         UpdateUserResponse:
             type: object
             properties: {}
@@ -2059,21 +2102,19 @@ components:
                     $ref: '#/components/schemas/Int32Field'
                 userGroups:
                     $ref: '#/components/schemas/GroupOptions'
-        UserUpdateOptions:
+        UserUpdate:
             type: object
             properties:
-                id:
-                    $ref: '#/components/schemas/Int64Field'
                 name:
-                    allOf:
-                        - $ref: '#/components/schemas/StringField'
+                    type: string
                     description: The name
                 groupId:
-                    $ref: '#/components/schemas/Int64Field'
+                    type: string
                 status:
-                    $ref: '#/components/schemas/Int32Field'
+                    type: integer
+                    format: int32
                 userGroups:
-                    $ref: '#/components/schemas/GroupUpdateOptions'
+                    $ref: '#/components/schemas/GroupUpdate'
 tags:
     - name: GroupService
     - name: UserService

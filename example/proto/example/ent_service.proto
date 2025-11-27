@@ -50,27 +50,23 @@ message UserOptions {
   GroupOptions user_groups = 7;
 }
 
-message GroupUpdateOptions {
-  syralon.entproto.Int64Field id = 1;
+message GroupUpdate {
+  optional string name = 1;
 
-  optional syralon.entproto.StringField name = 2;
-
-  UserUpdateOptions group_users = 3;
+  UserUpdate group_users = 2;
 }
 
-message UserUpdateOptions {
-  syralon.entproto.Int64Field id = 1;
-
+message UserUpdate {
   // The user name
-  optional syralon.entproto.StringField name = 2 [
+  optional string name = 1 [
     (openapi.v3.property) = { description: "The name" }
   ];
 
-  optional syralon.entproto.Int64Field group_id = 3;
+  optional int64 group_id = 2;
 
-  optional syralon.entproto.Int32Field status = 4;
+  optional int32 status = 3;
 
-  GroupUpdateOptions user_groups = 5;
+  GroupUpdate user_groups = 4;
 }
 
 message ListGroupOrder {
@@ -169,7 +165,7 @@ message CreateUserResponse {
 message UpdateGroupRequest {
   int64 id = 1;
 
-  GroupUpdateOptions options = 2;
+  GroupUpdate update = 2;
 }
 
 message UpdateGroupResponse {
@@ -178,7 +174,7 @@ message UpdateGroupResponse {
 message UpdateUserRequest {
   int64 id = 1;
 
-  UserUpdateOptions options = 2;
+  UserUpdate update = 2;
 }
 
 message UpdateUserResponse {
@@ -198,12 +194,24 @@ message DeleteUserRequest {
 message DeleteUserResponse {
 }
 
-message SetUserStatusRequest {
-  int64 user_id = 1;
+message SetUserGroupIdRequest {
+  int64 id = 1;
 
   UserOptions options = 2;
 
-  int32 set = 3;
+  int64 group_id = 3;
+}
+
+message SetUserGroupIdResponse {
+  int32 rows = 1;
+}
+
+message SetUserStatusRequest {
+  int64 id = 1;
+
+  UserOptions options = 2;
+
+  int32 status = 3;
 }
 
 message SetUserStatusResponse {
@@ -211,7 +219,7 @@ message SetUserStatusResponse {
 }
 
 message ListGroupGroupUsersRequest {
-  int64 group_id = 1;
+  int64 id = 1;
 
   UserOptions options = 2;
 
@@ -221,7 +229,7 @@ message ListGroupGroupUsersRequest {
 }
 
 message ListUserUserGroupsRequest {
-  int64 user_id = 1;
+  int64 id = 1;
 
   GroupOptions options = 2;
 
@@ -248,7 +256,7 @@ enum UserOrder {
 
 service GroupService {
   rpc ListGroupUsers ( ListGroupGroupUsersRequest ) returns ( ListUserResponse ) {
-    option (google.api.http) = { get: "/v1/group/{group_id}/groupusers" };
+    option (google.api.http) = { get: "/v1/group/{id}/groupusers" };
   }
 
   rpc Get ( GetGroupRequest ) returns ( GetGroupResponse ) {
@@ -264,7 +272,7 @@ service GroupService {
   }
 
   rpc Update ( UpdateGroupRequest ) returns ( UpdateGroupResponse ) {
-    option (google.api.http) = { post: "/v1/group/{id}", body: "*" };
+    option (google.api.http) = { put: "/v1/group/{id}", body: "*" };
   }
 
   rpc Delete ( DeleteGroupRequest ) returns ( DeleteGroupResponse ) {
@@ -273,12 +281,16 @@ service GroupService {
 }
 
 service UserService {
+  rpc SetGroupId ( SetUserGroupIdRequest ) returns ( SetUserGroupIdResponse ) {
+    option (google.api.http) = { put: "/v1/user/{id}/group_id", body: "*" };
+  }
+
   rpc SetStatus ( SetUserStatusRequest ) returns ( SetUserStatusResponse ) {
-    option (google.api.http) = { put: "/v1/user/{user_id}/status", body: "*" };
+    option (google.api.http) = { put: "/v1/user/{id}/status", body: "*" };
   }
 
   rpc ListUserGroups ( ListUserUserGroupsRequest ) returns ( ListGroupResponse ) {
-    option (google.api.http) = { get: "/v1/user/{user_id}/usergroups" };
+    option (google.api.http) = { get: "/v1/user/{id}/usergroups" };
   }
 
   rpc Get ( GetUserRequest ) returns ( GetUserResponse ) {
@@ -294,7 +306,7 @@ service UserService {
   }
 
   rpc Update ( UpdateUserRequest ) returns ( UpdateUserResponse ) {
-    option (google.api.http) = { post: "/v1/user/{id}", body: "*" };
+    option (google.api.http) = { put: "/v1/user/{id}", body: "*" };
   }
 
   rpc Delete ( DeleteUserRequest ) returns ( DeleteUserResponse ) {
