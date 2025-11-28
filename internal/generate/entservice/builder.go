@@ -53,8 +53,6 @@ func NewBuilder(opts ...Option) entcgen.Generator {
 
 func (b *builder) render(data any, name, filename string) error {
 	filename = path.Join(b.output, filename)
-	fmt.Println(name, filename)
-
 	_ = os.MkdirAll(path.Dir(filename), 0700)
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {

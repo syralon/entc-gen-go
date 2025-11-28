@@ -2,11 +2,12 @@ package entproto
 
 import (
 	"context"
-	"entgo.io/ent/entc/gen"
 	"fmt"
+	"os"
+
+	"entgo.io/ent/entc/gen"
 	"github.com/jhump/protoreflect/v2/protobuilder"
 	"github.com/jhump/protoreflect/v2/protoprint"
-	"os"
 )
 
 type ProtoGenerator struct {
