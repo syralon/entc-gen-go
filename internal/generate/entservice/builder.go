@@ -53,6 +53,8 @@ func NewBuilder(opts ...Option) entcgen.Generator {
 
 func (b *builder) render(data any, name, filename string) error {
 	filename = path.Join(b.output, filename)
+	fmt.Println(name, filename)
+
 	_ = os.MkdirAll(path.Dir(filename), 0700)
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
@@ -90,6 +92,7 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 	if err := b.renders(data, map[string]string{
 		"config.go.tpl":           "internal/conf/config.go",
 		"config.proto.tpl":        "internal/conf/config.proto",
+		"config.yaml.tpl":         "config.yaml",
 		"data.go.tpl":             "internal/data/data.go",
 		"data_provider.go.tpl":    "internal/data/provider.go",
 		"helper.go.tpl":           "internal/service/helper.go",
