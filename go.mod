@@ -4,11 +4,6 @@ go 1.24.6
 
 toolchain go1.24.10
 
-replace (
-	github.com/syralon/entc-gen-go/pkg/annotations => ./pkg/annotations
-	github.com/syralon/entc-gen-go/proto => ./proto
-)
-
 require (
 	entgo.io/ent v0.14.5
 	github.com/dave/jennifer v1.7.1
