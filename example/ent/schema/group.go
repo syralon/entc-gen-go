@@ -26,13 +26,16 @@ func (Group) Fields() []ent.Field {
 func (Group) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.From("group_users", User.Type).
-			Ref("user_groups"),
+			Ref("user_groups").Annotations(entproto.API(entproto.WithAPIDisableEdge(true))),
 		// Through("groups", UserGroup.Type), // 多对多关联也可以手动指定关联表
 	}
 }
 
 func (Group) Annotations() []schema.Annotation {
 	return []schema.Annotation{
-		entproto.API(entproto.WithAPIPattern("/v1")),
+		entproto.API(
+			entproto.WithAPIPattern("/v1"),
+			entproto.WithAPIMethods(entproto.ReadOnly),
+		),
 	}
 }

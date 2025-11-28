@@ -121,22 +121,6 @@ message ListUserResponse {
   repeated User data = 1;
 }
 
-message CreateGroupRequest {
-  int64 id = 1;
-
-  string name = 2;
-
-  google.protobuf.Timestamp created_at = 3;
-
-  google.protobuf.Timestamp updated_at = 4;
-
-  repeated User group_users = 5;
-}
-
-message CreateGroupResponse {
-  int64 id = 1;
-}
-
 message CreateUserRequest {
   int64 id = 1;
 
@@ -162,15 +146,6 @@ message CreateUserResponse {
   int64 id = 1;
 }
 
-message UpdateGroupRequest {
-  int64 id = 1;
-
-  GroupUpdate update = 2;
-}
-
-message UpdateGroupResponse {
-}
-
 message UpdateUserRequest {
   int64 id = 1;
 
@@ -178,13 +153,6 @@ message UpdateUserRequest {
 }
 
 message UpdateUserResponse {
-}
-
-message DeleteGroupRequest {
-  int64 id = 1;
-}
-
-message DeleteGroupResponse {
 }
 
 message DeleteUserRequest {
@@ -218,16 +186,6 @@ message SetUserStatusResponse {
   int32 rows = 1;
 }
 
-message ListGroupGroupUsersRequest {
-  int64 id = 1;
-
-  UserOptions options = 2;
-
-  repeated ListUserOrder orders = 3;
-
-  syralon.entproto.Paginator paginator = 4;
-}
-
 message ListUserUserGroupsRequest {
   int64 id = 1;
 
@@ -255,28 +213,12 @@ enum UserOrder {
 }
 
 service GroupService {
-  rpc ListGroupUsers ( ListGroupGroupUsersRequest ) returns ( ListUserResponse ) {
-    option (google.api.http) = { get: "/v1/group/{id}/groupusers" };
-  }
-
   rpc Get ( GetGroupRequest ) returns ( GetGroupResponse ) {
     option (google.api.http) = { get: "/v1/group/{id}" };
   }
 
   rpc List ( ListGroupRequest ) returns ( ListGroupResponse ) {
     option (google.api.http) = { get: "/v1/group" };
-  }
-
-  rpc Create ( CreateGroupRequest ) returns ( CreateGroupResponse ) {
-    option (google.api.http) = { post: "/v1/group", body: "*" };
-  }
-
-  rpc Update ( UpdateGroupRequest ) returns ( UpdateGroupResponse ) {
-    option (google.api.http) = { put: "/v1/group/{id}", body: "*" };
-  }
-
-  rpc Delete ( DeleteGroupRequest ) returns ( DeleteGroupResponse ) {
-    option (google.api.http) = { delete: "/v1/group/{id}" };
   }
 }
 

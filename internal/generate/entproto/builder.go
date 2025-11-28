@@ -5,7 +5,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/syralon/entc-gen-go/internal/entgen"
+	"github.com/syralon/entc-gen-go/internal/entcgen"
 )
 
 func NewEntityBuilder(path, pkg, goPkg string) ProtoFileBuilder {
@@ -67,7 +67,7 @@ func lastPath(dir string) string {
 	return d
 }
 
-func New(output, protoPath, pkg string) entgen.Generator {
+func New(output, protoPath, pkg string) entcgen.Generator {
 	dir := strings.ReplaceAll(path.Join(output, protoPath), "\\", "/")
 	_ = os.MkdirAll(dir, 0744)
 	if pkg == "" {

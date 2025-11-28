@@ -68,6 +68,14 @@ func MethodListEdges() ProtoMethodBuildFunc {
 			if ed.Unique {
 				continue
 			}
+			opts, err := entproto.GetAPIOptions(ed.Annotations)
+			if err != nil {
+				return nil, err
+			}
+			if opts.DisableEdge {
+				continue
+			}
+
 			name := strcase.ToCamel(ed.Name)
 			request := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("List%s%sRequest", node.Name, name)))
 			if request == nil {

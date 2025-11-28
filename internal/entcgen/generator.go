@@ -1,4 +1,4 @@
-package entgen
+package entcgen
 
 import (
 	"context"

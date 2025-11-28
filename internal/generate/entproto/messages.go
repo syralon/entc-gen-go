@@ -48,7 +48,7 @@ func ListOrderMessage() ProtoMessageBuildFunc {
 func MethodGetMessages() ProtoMessageBuildFunc {
 	return func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
 		opt, err := entproto.GetAPIOptions(node.Annotations)
-		if err != nil || opt.Method&entproto.APIGet == 0 {
+		if err != nil || opt.Method&entproto.GET == 0 {
 			return nil, nil, err
 		}
 		data := ctx.GetMessage(protoreflect.Name(node.Name))
@@ -89,7 +89,7 @@ func MethodListMessages() ProtoMessageBuildFunc {
 func MethodCreateMessages() ProtoMessageBuildFunc {
 	return func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
 		opt, err := entproto.GetAPIOptions(node.Annotations)
-		if err != nil || opt.Method&entproto.APICreate == 0 {
+		if err != nil || opt.Method&entproto.CREATE == 0 {
 			return nil, nil, err
 		}
 		request, edges, err := NewMessage(
@@ -108,7 +108,7 @@ func MethodCreateMessages() ProtoMessageBuildFunc {
 func MethodUpdateMessages() ProtoMessageBuildFunc {
 	return func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
 		opt, err := entproto.GetAPIOptions(node.Annotations)
-		if err != nil || opt.Method&entproto.APIUpdate == 0 {
+		if err != nil || opt.Method&entproto.UPDATE == 0 {
 			return nil, nil, err
 		}
 		options := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("%sUpdate", node.Name)))
@@ -126,7 +126,7 @@ func MethodUpdateMessages() ProtoMessageBuildFunc {
 func MethodDeleteMessages() ProtoMessageBuildFunc {
 	return func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
 		opt, err := entproto.GetAPIOptions(node.Annotations)
-		if err != nil || opt.Method&entproto.APIDelete == 0 {
+		if err != nil || opt.Method&entproto.DELETE == 0 {
 			return nil, nil, err
 		}
 		data := ctx.GetMessage(protoreflect.Name(node.Name))
@@ -174,6 +174,14 @@ func MethodListEdgesMessage() ProtoMessageBuildFunc {
 			if ed.Unique {
 				continue
 			}
+			opts, err := entproto.GetAPIOptions(ed.Annotations)
+			if err != nil {
+				return nil, nil, err
+			}
+			if opts.DisableEdge {
+				continue
+			}
+
 			edgeName := strcase.ToCamel(ed.Name)
 			options := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("%sOptions", ed.Type.Name)))
 			if options == nil {

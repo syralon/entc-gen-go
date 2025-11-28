@@ -10,45 +10,22 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/dave/jennifer/jen"
 	"github.com/iancoleman/strcase"
+
 	"github.com/syralon/entc-gen-go/internal/tools/text"
 	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"
 )
 
-const (
-	pkgEntproto = "github.com/syralon/entc-gen-go/proto/syralon/entproto"
-	entsql      = "entgo.io/ent/dialect/sql"
-	timestamppb = "google.golang.org/protobuf/types/known/timestamppb"
-	pkgStrcase  = "github.com/iancoleman/strcase"
-)
-
-type ServiceBuilder struct {
+type serviceBuilder struct {
 	entPackage   string
 	protoPackage string
 }
 
-type ServiceOption func(*ServiceBuilder)
-
-func WithEntPackage(pkg string) ServiceOption {
-	return func(builder *ServiceBuilder) {
-		builder.entPackage = pkg
+func (s *serviceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, error) {
+	opt, err := entproto.GetAPIOptions(node.Annotations)
+	if err != nil {
+		return nil, err
 	}
-}
 
-func WithProtoPackage(pkg string) ServiceOption {
-	return func(builder *ServiceBuilder) {
-		builder.protoPackage = pkg
-	}
-}
-
-func NewServiceBuilder(opts ...ServiceOption) *ServiceBuilder {
-	sb := &ServiceBuilder{}
-	for _, opt := range opts {
-		opt(sb)
-	}
-	return sb
-}
-
-func (s *ServiceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, error) {
 	file := jen.NewFile("service")
 
 	file.ImportAlias(s.protoPackage, "pb")
@@ -57,17 +34,29 @@ func (s *ServiceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, er
 	s.funcToProto(file, node)
 	s.funcFromProto(file, node)
 	s.serviceStruct(file, node)
-	s.funcGet(file, node)
-	s.funcList(file, node)
-	s.funcListEdge(file, node)
-	s.funcCreate(file, node)
-	s.funcUpdate(file, node)
+
 	s.funcSet(file, node)
-	s.funcDelete(file, node)
+	s.funcListEdge(file, node)
+
+	for _, m := range opt.Method.Methods() {
+		switch m {
+		case entproto.GET:
+			s.funcGet(file, node)
+		case entproto.LIST:
+			s.funcList(file, node)
+		case entproto.CREATE:
+			s.funcCreate(file, node)
+		case entproto.UPDATE:
+			s.funcUpdate(file, node)
+		case entproto.DELETE:
+			s.funcDelete(file, node)
+		default:
+		}
+	}
 	return file, nil
 }
 
-func (s *ServiceBuilder) funcToProto(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcToProto(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
 	var fields []jen.Code
@@ -93,7 +82,7 @@ func (s *ServiceBuilder) funcToProto(file *jen.File, node *gen.Type) {
 		)
 }
 
-func (s *ServiceBuilder) funcFromProto(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcFromProto(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
 	var fields []jen.Code
@@ -116,7 +105,7 @@ func (s *ServiceBuilder) funcFromProto(file *jen.File, node *gen.Type) {
 		)
 }
 
-func (s *ServiceBuilder) serviceStruct(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) serviceStruct(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
 	file.Type().Id(fmt.Sprintf("%sService", node.Name)).Struct(
@@ -135,7 +124,7 @@ func (s *ServiceBuilder) serviceStruct(file *jen.File, node *gen.Type) {
 		))
 }
 
-func (s *ServiceBuilder) funcGet(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcGet(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
 	fn := s.serviceFunc(file, node.Name, "Get", fmt.Sprintf("Get%sRequest", node.Name), fmt.Sprintf("Get%sResponse", node.Name))
@@ -154,7 +143,7 @@ func (s *ServiceBuilder) funcGet(file *jen.File, node *gen.Type) {
 	)
 }
 
-func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 	defer file.Line()
 	var fields = make([]*jen.Statement, 0, len(node.Fields))
 	for _, item := range node.Fields {
@@ -204,8 +193,15 @@ func (s *ServiceBuilder) funcList(file *jen.File, node *gen.Type) {
 		)
 }
 
-func (s *ServiceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 	for _, edge := range node.Edges {
+		opts, err := entproto.GetAPIOptions(edge.Annotations)
+		if err != nil {
+			return
+		}
+		if opts.DisableEdge {
+			continue
+		}
 		var fields []*jen.Statement
 		for _, v := range edge.Type.Fields {
 			fields = append(fields, chain("request", "Options", text.ProtoPascal(v.Name), "Selector").Call(
@@ -230,7 +226,7 @@ func (s *ServiceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 	}
 }
 
-func (s *ServiceBuilder) serviceFunc(file *jen.File, name, method, request, response string) *jen.Statement {
+func (s *serviceBuilder) serviceFunc(file *jen.File, name, method, request, response string) *jen.Statement {
 	return file.Func().Op("(").Id("s").Op("*").Id(fmt.Sprintf("%sService", name)).Op(")").Id(method).
 		Params(
 			jen.Id("ctx").Qual("context", "Context"),
@@ -242,7 +238,7 @@ func (s *ServiceBuilder) serviceFunc(file *jen.File, name, method, request, resp
 		)
 }
 
-func (s *ServiceBuilder) buildPaginator(name string) jen.Code {
+func (s *serviceBuilder) buildPaginator(name string) jen.Code {
 	return jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
 		jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
 			jen.Case(jen.Op("*").Qual(pkgEntproto, "Paginator_Classical")),
@@ -265,7 +261,7 @@ func (s *ServiceBuilder) buildPaginator(name string) jen.Code {
 	).Line()
 }
 
-func (s *ServiceBuilder) buildListResponse(name string) *jen.Statement {
+func (s *serviceBuilder) buildListResponse(name string) *jen.Statement {
 	codes := jen.Statement{
 		define("data", "err").Id("query").Dot("All").Call(jen.Id("ctx")),
 		jen.Line(),
@@ -280,7 +276,7 @@ func (s *ServiceBuilder) buildListResponse(name string) *jen.Statement {
 	return &codes
 }
 
-func (s *ServiceBuilder) orderMapping(file *jen.File, node *gen.Type) *jen.Statement {
+func (s *serviceBuilder) orderMapping(file *jen.File, node *gen.Type) *jen.Statement {
 	mapName := fmt.Sprintf("%sOrderFields", strcase.ToLowerCamel(node.Name))
 
 	byID := fmt.Sprintf("%sOrder_%s_ORDER_BY_ID", node.Name, strcase.ToScreamingSnake(node.Name))
@@ -306,7 +302,7 @@ func (s *ServiceBuilder) orderMapping(file *jen.File, node *gen.Type) *jen.State
 		Map(jen.Qual(s.protoPackage, fmt.Sprintf("%sOrder", node.Name))).String().Block(fields...)
 }
 
-func (s *ServiceBuilder) buildOrder(name string) *jen.Statement {
+func (s *serviceBuilder) buildOrder(name string) *jen.Statement {
 	return jen.For(define("_", "order").Range().Add(chain("request", "GetOrders()"))).Block(
 		jen.If(jen.Id("order").Op("==").Nil()).Block(jen.Continue()),
 		jen.Var().Id("opts").Index().Qual(entsql, "OrderTermOption"),
@@ -321,7 +317,7 @@ func (s *ServiceBuilder) buildOrder(name string) *jen.Statement {
 	).Line()
 }
 
-func (s *ServiceBuilder) funcCreate(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcCreate(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
 	create := define("create").Add(chain("s", "client", "Create()"))
@@ -344,7 +340,7 @@ func (s *ServiceBuilder) funcCreate(file *jen.File, node *gen.Type) {
 		)
 }
 
-func (s *ServiceBuilder) funcUpdate(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcUpdate(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
 	var fields []jen.Code
@@ -381,7 +377,7 @@ func (s *ServiceBuilder) funcUpdate(file *jen.File, node *gen.Type) {
 		)
 }
 
-func (s *ServiceBuilder) funcSet(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcSet(file *jen.File, node *gen.Type) {
 	for _, v := range node.Fields {
 		if v.Name == "created_at" || v.Name == "updated_at" {
 			continue
@@ -412,7 +408,7 @@ func (s *ServiceBuilder) funcSet(file *jen.File, node *gen.Type) {
 	}
 }
 
-func (s *ServiceBuilder) funcDelete(file *jen.File, node *gen.Type) {
+func (s *serviceBuilder) funcDelete(file *jen.File, node *gen.Type) {
 	defer file.Line()
 	s.serviceFunc(file, node.Name, "Delete", fmt.Sprintf("Delete%sRequest", node.Name), fmt.Sprintf("Delete%sResponse", node.Name)).
 		Block(

@@ -8,22 +8,22 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[APIGet-1]
-	_ = x[APIList-2]
-	_ = x[APICreate-4]
-	_ = x[APIUpdate-8]
-	_ = x[APIDelete-16]
+	_ = x[GET-1]
+	_ = x[LIST-2]
+	_ = x[CREATE-4]
+	_ = x[UPDATE-8]
+	_ = x[DELETE-16]
 }
 
 const (
-	_APIMethod_name_0 = "APIGetAPIList"
-	_APIMethod_name_1 = "APICreate"
-	_APIMethod_name_2 = "APIUpdate"
-	_APIMethod_name_3 = "APIDelete"
+	_APIMethod_name_0 = "GETLIST"
+	_APIMethod_name_1 = "CREATE"
+	_APIMethod_name_2 = "UPDATE"
+	_APIMethod_name_3 = "DELETE"
 )
 
 var (
-	_APIMethod_index_0 = [...]uint8{0, 6, 13}
+	_APIMethod_index_0 = [...]uint8{0, 3, 7}
 )
 
 func (i APIMethod) String() string {

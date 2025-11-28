@@ -1,12 +1,13 @@
 package entproto
 
 import (
+	"errors"
+	"path"
+
 	"entgo.io/ent/entc"
 	"entgo.io/ent/entc/gen"
-	"errors"
+	"github.com/iancoleman/strcase"
 	googleapi "google.golang.org/genproto/googleapis/api/annotations"
-	"path"
-	"strings"
 )
 
 var ErrUnknownMethod = errors.New("unknown method")
@@ -15,12 +16,14 @@ var ErrUnknownMethod = errors.New("unknown method")
 type APIMethod uint8
 
 const (
-	APIGet APIMethod = 1 << iota
-	APIList
-	APICreate
-	APIUpdate
-	APIDelete
-	APIAll = 1<<iota - 1
+	GET APIMethod = 1 << iota
+	LIST
+	CREATE
+	UPDATE
+	DELETE
+	ALL = 1<<iota - 1
+
+	ReadOnly = GET | LIST
 )
 
 func (a APIMethod) Methods() []APIMethod {
@@ -28,23 +31,23 @@ func (a APIMethod) Methods() []APIMethod {
 }
 
 func (a APIMethod) Name() string {
-	return strings.TrimPrefix(a.String(), "API")
+	return strcase.ToCamel(a.String())
 }
 
 func (a APIMethod) Rule(prefix string) (*googleapi.HttpRule, error) {
 	rule := &googleapi.HttpRule{}
 	switch a {
-	case APIGet:
+	case GET:
 		rule.Pattern = &googleapi.HttpRule_Get{Get: path.Join(prefix, "{id}")}
-	case APIList:
+	case LIST:
 		rule.Pattern = &googleapi.HttpRule_Get{Get: prefix}
-	case APICreate:
+	case CREATE:
 		rule.Pattern = &googleapi.HttpRule_Post{Post: prefix}
 		rule.Body = "*"
-	case APIUpdate:
+	case UPDATE:
 		rule.Pattern = &googleapi.HttpRule_Put{Put: path.Join(prefix, "{id}")}
 		rule.Body = "*"
-	case APIDelete:
+	case DELETE:
 		rule.Pattern = &googleapi.HttpRule_Delete{Delete: path.Join(prefix, "{id}")}
 	default:
 		return nil, ErrUnknownMethod
@@ -53,8 +56,9 @@ func (a APIMethod) Rule(prefix string) (*googleapi.HttpRule, error) {
 }
 
 type APIOptions struct {
-	Pattern string
-	Method  APIMethod
+	Pattern     string
+	Method      APIMethod
+	DisableEdge bool
 }
 
 type apiAnnotation struct {
@@ -80,6 +84,12 @@ func WithAPIMethods(methods ...APIMethod) func(a *apiAnnotation) {
 	}
 }
 
+func WithAPIDisableEdge(disable bool) func(a *apiAnnotation) {
+	return func(a *apiAnnotation) {
+		a.DisableEdge = disable
+	}
+}
+
 func API(opts ...APIOption) entc.Annotation {
 	a := &apiAnnotation{
 		APIOptions: defaultAPIOptions,
@@ -91,7 +101,7 @@ func API(opts ...APIOption) entc.Annotation {
 }
 
 var defaultAPIOptions = APIOptions{
-	Method: APIAll,
+	Method: ALL,
 }
 
 func GetAPIOptions(annotations gen.Annotations) (APIOptions, error) {
