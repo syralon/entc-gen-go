@@ -19,7 +19,6 @@ func main() {
 
 	generator := entproto.New(
 		"example",
-		"proto/example",
 		"",
 	)
 	err = generator.Generate(context.Background(), graph)

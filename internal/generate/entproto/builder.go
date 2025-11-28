@@ -67,7 +67,8 @@ func lastPath(dir string) string {
 	return d
 }
 
-func New(output, protoPath, pkg string) entcgen.Generator {
+func New(output, pkg string) entcgen.Generator {
+	protoPath := path.Join("proto", path.Base(output))
 	dir := strings.ReplaceAll(path.Join(output, protoPath), "\\", "/")
 	_ = os.MkdirAll(dir, 0744)
 	if pkg == "" {

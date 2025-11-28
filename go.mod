@@ -20,6 +20,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jhump/protoreflect/v2 v2.0.0-beta.2
+	github.com/spf13/cobra v1.7.0
 	github.com/syralon/entc-gen-go/pkg/annotations v0.0.0-00010101000000-000000000000
 	github.com/syralon/entc-gen-go/proto v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/otel v1.37.0
@@ -46,7 +47,9 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/hcl/v2 v2.18.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/zclconf/go-cty v1.14.4 // indirect
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
