@@ -2,20 +2,21 @@ package main
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/syralon/entc-gen-go/internal/command"
-	"os"
 )
 
 func main() {
 	cmd := &cobra.Command{
 		Use:           "entc-gen",
-		Long:          "A service generator base on ent(https://entgo.io/).\nSee also: https://github.com/syralon/entc-gen-go",
+		Long:          "A service generator base on ent(https://entgo.io/).\nHomepage: https://github.com/syralon/entc-gen-go",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
+	cmd.AddCommand(command.Ent()...)
 	cmd.AddCommand(
-		command.New(),
 		command.Proto(),
 		command.Service(),
 	)
