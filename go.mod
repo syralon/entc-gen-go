@@ -13,8 +13,8 @@ require (
 	github.com/iancoleman/strcase v0.3.0
 	github.com/jhump/protoreflect/v2 v2.0.0-beta.2
 	github.com/spf13/cobra v1.7.0
-	github.com/syralon/entc-gen-go/pkg/annotations v0.0.0-20251128165538-dae3bcc93d5a
-	github.com/syralon/entc-gen-go/proto v0.0.0-20251128165538-dae3bcc93d5a
+	github.com/syralon/entc-gen-go/pkg/annotations v0.0.2-alpha
+	github.com/syralon/entc-gen-go/proto v0.0.2-alpha
 	golang.org/x/mod v0.27.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20251111163417-95abcf5c77ba
 	google.golang.org/protobuf v1.36.10
