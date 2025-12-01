@@ -1,13 +1,15 @@
 package server
 
 import (
+    "log/slog"
+
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/http"
 
     "{{.module}}/internal/conf"
     "{{.module}}/internal/service"
-    pb "{{.module}}/proto/example"
+    pb "{{.proto_package}}"
 )
 
 func NewHTTPServer(c *conf.Server, services *service.Services) *http.Server {
@@ -32,5 +34,7 @@ func NewHTTPServer(c *conf.Server, services *service.Services) *http.Server {
 
 	{{ range .services }}pb.Register{{.}}HTTPServer(srv, services.{{.}})
 	{{ end }}
+	slog.Info("http server started", "addr", c.Http.Addr)
+
 	return srv
 }

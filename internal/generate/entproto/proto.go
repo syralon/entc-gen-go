@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 
 	"entgo.io/ent/entc/gen"
 	"github.com/jhump/protoreflect/v2/protobuilder"
@@ -64,6 +65,7 @@ func (g *ProtoGenerator) write(idx int, fb *protobuilder.FileBuilder) (err error
 		fb.SetPath(fmt.Sprintf("generated_%03d.proto", idx+1))
 	}
 	filename := fmt.Sprintf("%s/%s", g.output, fb.Path())
+	_ = os.MkdirAll(path.Dir(filename), 0700)
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err

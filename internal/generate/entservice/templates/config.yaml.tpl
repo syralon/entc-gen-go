@@ -11,8 +11,8 @@ server:
     timeout: 5s
 data:
   database:
-    driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/example
+    driver: sqlite3
+    source: ':memory:'
   redis:
     addrs:
       - 127.0.0.1:6379

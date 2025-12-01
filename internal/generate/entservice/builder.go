@@ -11,13 +11,14 @@ import (
 	"entgo.io/ent/entc/gen"
 	"github.com/dave/jennifer/jen"
 	"github.com/syralon/entc-gen-go/internal/entcgen"
+	"github.com/syralon/entc-gen-go/internal/tools/text"
 )
 
 type Option func(b *builder)
 
 func WithModule(module string) Option {
 	return func(b *builder) {
-		b.module = module
+		b.rootModule = module
 	}
 }
 
@@ -28,15 +29,15 @@ func WithOutput(output string) Option {
 }
 
 type builder struct {
-	output string
-	module string
+	output     string
+	rootModule string
 
 	templates *template.Template
 }
 
 func NewBuilder(opts ...Option) entcgen.Generator {
 	b := &builder{
-		module: "github.com/syralon/example",
+		rootModule: "",
 	}
 	for _, opt := range opts {
 		opt(b)
@@ -82,9 +83,12 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 	for _, node := range graph.Nodes {
 		services = append(services, fmt.Sprintf("%sService", node.Name))
 	}
+	module := path.Join(b.rootModule, b.output)
+	protoModule := path.Join(module, text.ProtoModule(b.rootModule))
 	data := map[string]any{
-		"module":               b.module,
-		"config_proto_package": path.Base(b.module) + ".config",
+		"module":               module,
+		"config_proto_package": path.Base(module) + ".config",
+		"proto_package":        protoModule,
 		"services":             services,
 	}
 	if err := b.renders(data, map[string]string{
@@ -94,19 +98,20 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		"data.go.tpl":             "internal/data/data.go",
 		"data_provider.go.tpl":    "internal/data/provider.go",
 		"helper.go.tpl":           "internal/service/helper.go",
-		"main.go.tpl":             path.Join("cmd", path.Base(b.module), "main.go"),
+		"main.go.tpl":             path.Join("cmd", path.Base(module), "main.go"),
 		"Makefile.tpl":            "Makefile",
 		"server_grpc.go.tpl":      "internal/server/grpc.go",
 		"server_http.go.tpl":      "internal/server/http.go",
 		"server_provider.go.tpl":  "internal/server/provider.go",
 		"service_provider.go.tpl": "internal/service/provider.go",
-		"wire.go.tpl":             path.Join("cmd", path.Base(b.module), "wire.go"),
+		"wire.go.tpl":             path.Join("cmd", path.Base(module), "wire.go"),
+		"wire_gen.go.tpl":         path.Join("cmd", path.Base(module), "wire_gen.go"),
 	}); err != nil {
 		return err
 	}
 	sb := &serviceBuilder{
-		entPackage:   path.Join(b.module, "ent"),
-		protoPackage: path.Join(b.module, "proto", path.Base(b.module)),
+		entPackage:   path.Join(module, "ent"),
+		protoPackage: protoModule,
 	}
 	for _, node := range graph.Nodes {
 		file, err := sb.Build(ctx, node)
@@ -117,14 +122,14 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 			return err
 		}
 	}
-	if err := b.service(ctx, graph); err != nil {
+	if err := b.service(ctx, module, graph); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *builder) service(_ context.Context, graph *gen.Graph) error {
-	entPkg := path.Join(b.module, "ent")
+func (b *builder) service(_ context.Context, module string, graph *gen.Graph) error {
+	entPkg := path.Join(module, "ent")
 	var fields []jen.Code
 	var blocks []jen.Code
 	for _, node := range graph.Nodes {

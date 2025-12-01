@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	
+	"github.com/syralon/entc-gen-go/internal/tools/text"
 )
 
 type options struct {
@@ -21,7 +23,7 @@ func (o *options) register(cmd *cobra.Command) {
 
 func (o *options) parse() error {
 	var err error
-	o.module, err = Module(".")
+	o.module, err = text.Module(".")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("%w, use 'go mod init' to create a new mod", err)

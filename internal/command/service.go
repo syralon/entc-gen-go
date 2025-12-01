@@ -1,8 +1,6 @@
 package command
 
 import (
-	"path"
-
 	"entgo.io/ent/entc"
 	"entgo.io/ent/entc/gen"
 	"github.com/spf13/cobra"
@@ -23,9 +21,9 @@ func Service() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			module := path.Join(opt.module, opt.output)
+			//module := path.Join(opt.module, opt.output)
 			b := entservice.NewBuilder(
-				entservice.WithModule(module),
+				entservice.WithModule(opt.module),
 				entservice.WithOutput(opt.output),
 			)
 			return b.Generate(cmd.Context(), graph)

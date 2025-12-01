@@ -2,7 +2,6 @@ package command
 
 import (
 	"os/exec"
-	"path"
 
 	"entgo.io/ent/entc"
 	"entgo.io/ent/entc/gen"
@@ -25,8 +24,7 @@ func Proto() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			module := path.Join(opt.module, opt.output)
-			generator := entproto.New(module, opt.output)
+			generator := entproto.New(opt.module, opt.output)
 			if err = generator.Generate(ctx, graph); err != nil {
 				return err
 			}
