@@ -19,6 +19,7 @@ func main() {
 	cmd.AddCommand(
 		command.Proto(),
 		command.Service(),
+		command.Run(),
 	)
 	if err := cmd.Execute(); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "%s", err.Error())

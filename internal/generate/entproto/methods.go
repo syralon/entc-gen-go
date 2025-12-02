@@ -65,8 +65,9 @@ func MethodListEdges() ProtoMethodBuildFunc {
 
 		var methods = make([]*protobuilder.MethodBuilder, 0, len(node.Edges))
 		for _, ed := range node.Edges {
+			methodPrefix := "List"
 			if ed.Unique {
-				continue
+				methodPrefix = "Get"
 			}
 			opts, err := entproto.GetAPIOptions(ed.Annotations)
 			if err != nil {
@@ -77,16 +78,16 @@ func MethodListEdges() ProtoMethodBuildFunc {
 			}
 
 			name := strcase.ToCamel(ed.Name)
-			request := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("List%s%sRequest", node.Name, name)))
+			request := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("%s%s%sRequest", methodPrefix, node.Name, name)))
 			if request == nil {
-				return nil, fmt.Errorf("message List%s%sRequest not found", node.Name, name)
+				return nil, fmt.Errorf("message %s%s%sRequest not found", methodPrefix, node.Name, name)
 			}
-			response := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("List%sResponse", ed.Type.Name)))
+			response := ctx.GetMessage(protoreflect.Name(fmt.Sprintf("%s%sResponse", methodPrefix, ed.Type.Name)))
 			if response == nil {
-				return nil, fmt.Errorf("message List%sResponse not found", ed.Type.Name)
+				return nil, fmt.Errorf("message %s%sResponse not found", methodPrefix, ed.Type.Name)
 			}
-			method := protobuilder.NewMethod(
-				protoreflect.Name(fmt.Sprintf("List%s", name)),
+			mt := protobuilder.NewMethod(
+				protoreflect.Name(fmt.Sprintf("%s%s", methodPrefix, name)),
 				protobuilder.RpcTypeMessage(request, false),
 				protobuilder.RpcTypeMessage(response, false),
 			)
@@ -97,12 +98,15 @@ func MethodListEdges() ProtoMethodBuildFunc {
 					"{id}",
 					strings.ToLower(strcase.ToCamel(ed.Name)),
 				)
+				if ed.Unique {
+					pattern = path.Join(pattern, fmt.Sprintf("{%s_id}", strcase.ToSnake(ed.Type.Name)))
+				}
 				rule := &googleapi.HttpRule{Pattern: &googleapi.HttpRule_Get{Get: pattern}}
 				properties := &descriptor.MethodOptions{}
 				proto.SetExtension(properties, googleapi.E_Http, rule)
-				method.SetOptions(properties)
+				mt.SetOptions(properties)
 			}
-			methods = append(methods, method)
+			methods = append(methods, mt)
 		}
 		return methods, nil
 	}

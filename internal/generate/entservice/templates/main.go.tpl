@@ -15,8 +15,6 @@ import (
 	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-    _ "github.com/mattn/go-sqlite3"
-
 	"{{.module}}/internal/conf"
 )
 

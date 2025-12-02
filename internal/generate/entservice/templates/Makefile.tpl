@@ -1,22 +1,28 @@
 .PHONY: grpc
 # generate grpc code
 grpc:
-	protoc -I ../proto -I . --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./proto/example/*.proto
+	protoc -I . --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. ./{{.proto_path}}/*.proto
 
 .PHONY: http
 # generate kratos-http code
 http:
-	protoc -I ../proto -I . --go_out=paths=source_relative:. --go-http_out=paths=source_relative:. ./proto/example/*.proto
+	protoc -I . --go_out=paths=source_relative:. --go-http_out=paths=source_relative:. ./{{.proto_path}}/*.proto
 
 .PHONY: gateway
 # generate grpc-gateway code
 gateway:
-	protoc -I ../proto -I . --go_out=paths=source_relative:. --grpc-gateway_out=paths=source_relative:. ./proto/example/*.proto
+	protoc -I . --go_out=paths=source_relative:. --grpc-gateway_out=paths=source_relative:. ./{{.proto_path}}/*.proto
 
 .PHONY: openapi
 # generate openapi documents
 openapi:
-	protoc -I ../proto -I . --openapi_out=. ./proto/example/*.proto
+	protoc -I . --openapi_out=. ./{{.proto_path}}/*.proto
+
+.PHONY: conf
+# generate config
+conf:
+	protoc -I . --go_out=paths=source_relative:. internal/conf/*.proto
+
 
 .PHONY: proto
 # generate all proto code

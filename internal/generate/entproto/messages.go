@@ -201,3 +201,26 @@ func MethodListEdgesMessage() ProtoMessageBuildFunc {
 		return ms, nil, nil
 	}
 }
+
+func MethodGetEdgesMessage() ProtoMessageBuildFunc {
+	return func(ctx *FileContext, node *gen.Type) ([]*protobuilder.MessageBuilder, Edge, error) {
+		var ms []*protobuilder.MessageBuilder
+		for _, ed := range node.Edges {
+			if !ed.Unique {
+				continue
+			}
+			opts, err := entproto.GetAPIOptions(ed.Annotations)
+			if err != nil {
+				return nil, nil, err
+			}
+			if opts.DisableEdge {
+				continue
+			}
+			request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Get%s%sRequest", node.Name, strcase.ToCamel(ed.Name))))
+			request.AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type]))
+			request.AddField(protobuilder.NewField(protoreflect.Name(fmt.Sprintf("%s_id", strcase.ToSnake(ed.Type.Name))), EntityTypeMapping[ed.Type.IDType.Type]))
+			ms = append(ms, request)
+		}
+		return ms, nil, nil
+	}
+}

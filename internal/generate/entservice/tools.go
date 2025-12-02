@@ -1,6 +1,10 @@
 package entservice
 
-import "github.com/dave/jennifer/jen"
+import (
+	"entgo.io/ent/entc/gen"
+	"entgo.io/ent/schema/field"
+	"github.com/dave/jennifer/jen"
+)
 
 func chain(names ...string) *jen.Statement {
 	var st *jen.Statement
@@ -46,4 +50,63 @@ func ifErr() *jen.Statement {
 
 func structPtr(name, key, val *jen.Statement) *jen.Statement {
 	return jen.Op("&").Add(name).Op("{").Add(key).Op(":").Add(val).Op("}")
+}
+
+func EntID(n *gen.Type, v *jen.Statement) *jen.Statement {
+	switch n.ID.Type.Type {
+	case field.TypeInt8:
+		return jen.Int8().Call(v)
+	case field.TypeInt16:
+		return jen.Int16().Call(v)
+	case field.TypeInt32:
+		return v
+	case field.TypeInt:
+		return jen.Int().Call(v)
+	case field.TypeInt64:
+		return v
+	case field.TypeUint8:
+		return jen.Uint8().Call(v)
+	case field.TypeUint16:
+		return jen.Uint16().Call(v)
+	case field.TypeUint32:
+		return v
+	case field.TypeUint:
+		return jen.Uint().Call(v)
+	case field.TypeUint64:
+		return v
+	case field.TypeString:
+		return v
+	case field.TypeUUID:
+		return v
+	default:
+		//panic(fmt.Errorf("unsupported ent id type: %s", n.ID.Type.Type))
+		return v
+	}
+}
+
+func ProtoID(n *gen.Type, v *jen.Statement) *jen.Statement {
+	switch n.ID.Type.Type {
+	case field.TypeInt8, field.TypeInt16, field.TypeInt32:
+		return jen.Int32().Call(v)
+	case field.TypeInt, field.TypeInt64:
+		return jen.Int64().Call(v)
+	case field.TypeUint8, field.TypeUint32:
+		return jen.Uint32().Call(v)
+	case field.TypeUint, field.TypeUint64:
+		return jen.Uint64().Call(v)
+	case field.TypeString:
+		return v
+	case field.TypeUUID:
+		return v.Dot("String").Call()
+	default:
+		//panic(fmt.Errorf("unsupported ent id type: %s", n.ID.Type.Type))
+		return v
+	}
+}
+
+func ternary(v bool, a, b *jen.Statement) *jen.Statement {
+	if v {
+		return a
+	}
+	return b
 }

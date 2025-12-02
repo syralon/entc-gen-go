@@ -27,9 +27,15 @@ func WithOutput(output string) Option {
 		b.output = output
 	}
 }
+func WithOverwrite(overwrite bool) Option {
+	return func(b *builder) {
+		b.overwrite = overwrite
+	}
+}
 
 type builder struct {
 	output     string
+	overwrite  bool
 	rootModule string
 
 	templates *template.Template
@@ -52,8 +58,13 @@ func NewBuilder(opts ...Option) entcgen.Generator {
 	return b
 }
 
-func (b *builder) render(data any, name, filename string) error {
-	filename = path.Join(b.output, filename)
+func (b *builder) render(data any, name string, o *output) error {
+	filename := path.Join(b.output, o.filename)
+	if !o.overwrite {
+		if _, err := os.Stat(filename); err == nil || !os.IsNotExist(err) {
+			return nil
+		}
+	}
 	_ = os.MkdirAll(path.Dir(filename), 0700)
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
@@ -63,9 +74,9 @@ func (b *builder) render(data any, name, filename string) error {
 	return b.templates.ExecuteTemplate(file, name, data)
 }
 
-func (b *builder) renders(data any, m map[string]string) error {
-	for name, filename := range m {
-		if err := b.render(data, name, filename); err != nil {
+func (b *builder) renders(data any, m map[string]*output) error {
+	for name, o := range m {
+		if err := b.render(data, name, o); err != nil {
 			return err
 		}
 	}
@@ -89,23 +100,24 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		"module":               module,
 		"config_proto_package": path.Base(module) + ".config",
 		"proto_package":        protoModule,
+		"proto_path":           text.ProtoModule(b.rootModule),
 		"services":             services,
 	}
-	if err := b.renders(data, map[string]string{
-		"config.go.tpl":           "internal/conf/config.go",
-		"config.proto.tpl":        "internal/conf/config.proto",
-		"config.yaml.tpl":         "config.yaml",
-		"data.go.tpl":             "internal/data/data.go",
-		"data_provider.go.tpl":    "internal/data/provider.go",
-		"helper.go.tpl":           "internal/service/helper.go",
-		"main.go.tpl":             path.Join("cmd", path.Base(module), "main.go"),
-		"Makefile.tpl":            "Makefile",
-		"server_grpc.go.tpl":      "internal/server/grpc.go",
-		"server_http.go.tpl":      "internal/server/http.go",
-		"server_provider.go.tpl":  "internal/server/provider.go",
-		"service_provider.go.tpl": "internal/service/provider.go",
-		"wire.go.tpl":             path.Join("cmd", path.Base(module), "wire.go"),
-		"wire_gen.go.tpl":         path.Join("cmd", path.Base(module), "wire_gen.go"),
+	if err := b.renders(data, map[string]*output{
+		"config.go.tpl":           out("internal/conf/config.go", b.overwrite),
+		"config.proto.tpl":        out("internal/conf/config.proto", b.overwrite),
+		"config.yaml.tpl":         out("config.yaml", b.overwrite),
+		"data.go.tpl":             out("internal/data/data.go", b.overwrite),
+		"data_provider.go.tpl":    out("internal/data/provider.go", b.overwrite),
+		"helper.go.tpl":           out("internal/service/helper.go", b.overwrite),
+		"main.go.tpl":             out(path.Join("cmd", path.Base(module), "main.go"), b.overwrite),
+		"Makefile.tpl":            out("Makefile", b.overwrite),
+		"server_grpc.go.tpl":      out("internal/server/grpc.go", b.overwrite),
+		"server_http.go.tpl":      out("internal/server/http.go", b.overwrite),
+		"server_provider.go.tpl":  out("internal/server/provider.go", b.overwrite),
+		"service_provider.go.tpl": out("internal/service/provider.go", b.overwrite),
+		"wire.go.tpl":             out(path.Join("cmd", path.Base(module), "wire.go"), b.overwrite),
+		"wire_gen.go.tpl":         out(path.Join("cmd", path.Base(module), "wire_gen.go"), b.overwrite),
 	}); err != nil {
 		return err
 	}

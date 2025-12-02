@@ -39,6 +39,7 @@ func NewGRPCBuilder(filename, pkg, goPkg string) ProtoFileBuilder {
 			MethodDeleteMessages(),
 			MethodSetMessages(),
 			MethodListEdgesMessage(),
+			MethodGetEdgesMessage(),
 		),
 		WithServiceBuilder(
 			GRPCServiceBuilder(),
