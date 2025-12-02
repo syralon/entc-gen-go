@@ -1,8 +1,6 @@
 package server
 
 import (
-    "log/slog"
-
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
@@ -34,7 +32,5 @@ func NewGRPCServer(c *conf.Server, services *service.Services) *grpc.Server {
 
     {{ range .services }}pb.Register{{.}}Server(srv, services.{{.}})
     {{ end }}
-    slog.Info("grpc server started", "addr", c.Grpc.Addr)
-
 	return srv
 }
