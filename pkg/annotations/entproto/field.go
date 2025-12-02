@@ -1,6 +1,7 @@
 package entproto
 
 import (
+	"entgo.io/ent/schema/field"
 	"errors"
 
 	"entgo.io/ent/entc"
@@ -26,13 +27,15 @@ func (f Filter) Filters() []Filter {
 }
 
 type FieldOptions struct {
-	Name       string
-	Visible    bool
-	Filterable bool
-	Immutable  bool
-	Settable   bool
-	Filter     Filter
-	Orderable  bool
+	Name         string
+	Visible      bool
+	Filterable   bool
+	Immutable    bool
+	Settable     bool
+	Filter       Filter
+	Orderable    bool
+	Type         field.Type
+	TypeRepeated bool
 }
 
 type fieldAnnotation struct {
@@ -85,6 +88,13 @@ func WithFieldFilter(filters ...Filter) FieldOption {
 		for _, f := range filters {
 			a.Filter |= f
 		}
+	}
+}
+
+func WithFieldType(fieldType field.Type, repeated ...bool) FieldOption {
+	return func(a *fieldAnnotation) {
+		a.Type = fieldType
+		a.TypeRepeated = len(repeated) > 0 && repeated[0]
 	}
 }
 
