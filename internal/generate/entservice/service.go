@@ -136,7 +136,7 @@ func (s *serviceBuilder) funcGet(file *jen.File, node *gen.Type) {
 	fn = fn.Block(
 		// data, err := s.client.Get(ctx, request.GetId())
 		jen.List(jen.Id("data"), jen.Id("err")).Op(":=").Id("s").Op(".").Id("client").Op(".").Id("Get").
-			Call(jen.Id("ctx"), EntID(node, jen.Id("request").Dot("GetId").Call())),
+			Call(jen.Id("ctx"), EntID(node, jen.Id("request").Dot("GetId()"))),
 		// if err != nil {}
 		jen.If(jen.Id("err").Op("!=").Nil()).Block(
 			jen.Return(jen.Nil(), jen.Id("err")),
@@ -155,7 +155,7 @@ func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 		fields = append(
 			fields,
 			// request.GetOptions().GetXXX().Selector()
-			jen.Id("request").Dot("GetOptions").Call().Dot("Get"+text.ProtoPascal(item.Name)).Call().Dot("Selector").
+			jen.Id("request").Dot("GetOptions()").Dot("Get"+text.ProtoPascal(item.Name)).Call().Dot("Selector").
 				Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), fmt.Sprintf("Field%s", text.EntPascal(item.Name)))),
 		)
 	}
@@ -166,14 +166,14 @@ func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 		for _, ef := range edge.Type.Fields {
 			edgeFields = append(
 				edgeFields,
-				jen.Id("e").Dot(fmt.Sprintf("Get%s", text.ProtoPascal(ef.Name))).Call().Dot("Selector").
+				jen.Id("e").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(ef.Name))).Dot("Selector").
 					Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(edge.Type.Name)), fmt.Sprintf("Field%s", text.EntPascal(ef.Name)))),
 			)
 		}
 		edges = append(
 			edges,
 			// if e := request.GetOptions().GetEdgeName(); e != nil
-			jen.If(define("e").Id("request").Dot("GetOptions").Call().Dot("Get"+text.EntPascal(edge.Name)).Call().Op(";").Id("e").Op("!=").Nil()).Block(
+			jen.If(define("e").Id("request").Dot("GetOptions()").Dot("Get"+text.EntPascal(edge.Name)).Call().Op(";").Id("e").Op("!=").Nil()).Block(
 				jen.Id("query").Dot(fmt.Sprintf("With%s", text.EntPascal(edge.Name))).Call(
 					jen.Func().Params(jen.Id("eq").Op("*").Qual(s.entPackage, edge.Type.Name+"Query")).Block(
 						jen.Id("eq").Dot("Where").Call(
@@ -190,7 +190,7 @@ func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 			jen.Id("conditions").Op(":=").Qual(pkgEntproto, "Selectors").Index(
 				jen.Qual(path.Join(s.entPackage, "predicate"), node.Name),
 			).Add(calls(fields...)),
-			jen.Id("query").Op(":=").Id("s").Op(".").Id("client").Op(".").Id("Query").Call(),
+			jen.Id("query").Op(":=").Id("s").Op(".").Id("client").Op(".").Id("Query()"),
 			jen.Id("query").Op("=").Id("query").Op(".").Id("Where").Call(jen.Id("conditions").Op("...")),
 
 			jen.Line(),
@@ -217,7 +217,7 @@ func (s *serviceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 		var fields []*jen.Statement
 		for _, v := range edge.Type.Fields {
 			//fields = append(fields, chain("request", "Options", text.ProtoPascal(v.Name), "Selector").Call(
-			fields = append(fields, jen.Id("request").Dot("GetOptions").Call().Dot("Get"+text.ProtoPascal(v.Name)).Call().Dot("Selector").Call(
+			fields = append(fields, jen.Id("request").Dot("GetOptions()").Dot("Get"+text.ProtoPascal(v.Name)).Call().Dot("Selector").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(edge.Type.Name)), fmt.Sprintf("Field%s", text.EntPascal(v.Name))),
 			))
 		}
@@ -226,9 +226,9 @@ func (s *serviceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 			fmt.Sprintf("List%s%sRequest", node.Name, text.ProtoPascal(edge.Name)),
 			fmt.Sprintf("List%sResponse", edge.Type.Name),
 		).Block(
-			define("query").Id("s").Dot("client").Dot("Query").Call().Dot("Where").Call(
+			define("query").Id("s").Dot("client").Dot("Query()").Dot("Where").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(EntID(edge.Type, jen.Id("request").Dot("Id"))),
-			).Dot(fmt.Sprintf("Query%s", text.EntPascal(edge.Name))).Call().Dot("Where").Call(
+			).Dot(fmt.Sprintf("Query%s()", text.EntPascal(edge.Name))).Dot("Where").Call(
 				jen.Qual(pkgEntproto, "Selectors").Index(jen.Qual(path.Join(s.entPackage, "predicate"), edge.Type.Name)).Add(calls(fields...)).Op("..."),
 			),
 			file.Line(),
@@ -262,12 +262,12 @@ func (s *serviceBuilder) funcGetEdge(file *jen.File, node *gen.Type) {
 			fmt.Sprintf("Get%s%sRequest", node.Name, text.ProtoPascal(edge.Name)),
 			fmt.Sprintf("Get%sResponse", edge.Type.Name),
 		).Block(
-			define("query").Id("s").Dot("client").Dot("Query").Call().Dot("Where").Call(
-				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(EntID(node, jen.Id("request").Dot("GetId").Call())),
-			).Dot(fmt.Sprintf("Query%s", text.EntPascal(edge.Name))).Call().Dot("Where").Call(
+			define("query").Id("s").Dot("client").Dot("Query()").Dot("Where").Call(
+				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(EntID(node, jen.Id("request").Dot("GetId()"))),
+			).Dot(fmt.Sprintf("Query%s()", text.EntPascal(edge.Name))).Dot("Where").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(edge.Type.Name)), "ID").Call(EntID(node, jen.Id("request").Dot(
-					fmt.Sprintf("Get%sId", text.ProtoPascal(edge.Type.Name)),
-				).Call())),
+					fmt.Sprintf("Get%sId()", text.ProtoPascal(edge.Type.Name)),
+				))),
 			),
 			file.Line(),
 			s.buildGetResponse(edge.Type.Name),
@@ -288,22 +288,22 @@ func (s *serviceBuilder) serviceFunc(file *jen.File, name, method, request, resp
 }
 
 func (s *serviceBuilder) buildPaginator(node *gen.Type) jen.Code {
-	return jen.If(define("paginator").Id("request").Dot("GetPaginator").Call().Op(";").Id("paginator").Op("!=").Nil()).Block(
-		jen.Switch(define("page").Id("paginator").Dot("GetPaginator").Call().Op(".").Call(jen.Type())).Block(
+	return jen.If(define("paginator").Id("request").Dot("GetPaginator()").Op(";").Id("paginator").Op("!=").Nil()).Block(
+		jen.Switch(define("page").Id("paginator").Dot("GetPaginator()").Op(".").Call(jen.Type())).Block(
 			jen.Case(jen.Op("*").Qual(pkgEntproto, "Paginator_Classical")),
 			assign("query").Id("query").
-				Dot("Order").Call(chain("page", "Classical", "OrderSelector").Call()).
+				Dot("Order").Call(chain("page", "Classical", "OrderSelector()")).
 				Dot("\nOffset").Call(jen.Int().Call(
 				jen.Id("page").Dot("Classical").Dot("GetLimit()").Op("*").Call(jen.Id("page").Dot("Classical").Dot("GetPage()").Op("-").Id("1")),
 			)).
 				Dot("\nLimit").Call(jen.Int().Call(jen.Id("page").Dot("Classical").Dot("GetLimit()"))),
 			jen.Case(jen.Op("*").Qual(pkgEntproto, "Paginator_Infinite")),
 			assign("query").Id("query").
-				Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ByID").Call()).
+				Dot("Order").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ByID()")).
 				Dot("\nLimit").Call(jen.Int().Call(chain("page", "Infinite", "GetLimit()"))),
 			jen.If(define("sequence").Id("page").Dot("Infinite").Dot("GetSequence()").Op(";").Id("sequence").Op(">").Id("0")).Block(
 				assign("query").Id("query").Dot("Where").Call(jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "IDLT").Call(
-					EntID(node, jen.Id("page").Dot("Infinite").Dot("GetSequence").Call()),
+					EntID(node, jen.Id("page").Dot("Infinite").Dot("GetSequence()")),
 				)),
 			),
 		),
@@ -393,7 +393,11 @@ func (s *serviceBuilder) funcCreate(file *jen.File, node *gen.Type) {
 		if v.Name == "created_at" || v.Name == "updated_at" {
 			continue
 		}
-		create = create.Op(".").Id("\n").Id(fmt.Sprintf("Set%s", text.EntPascal(v.Name))).Call(jen.Id("request").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name))))
+		val := jen.Id("request").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name)))
+		if v.Type.Type == field.TypeTime {
+			val = val.Dot("AsTime()")
+		}
+		create = create.Op(".").Id("\n").Id(fmt.Sprintf("Set%s", text.EntPascal(v.Name))).Call(val)
 	}
 	//fn := s.serviceFunc(file, "Create", node.Name)
 	s.serviceFunc(file, node.Name, "Create", fmt.Sprintf("Create%sRequest", node.Name), fmt.Sprintf("Create%sResponse", node.Name)).
@@ -426,18 +430,20 @@ func (s *serviceBuilder) funcUpdate(file *jen.File, node *gen.Type) {
 		if fieldOpts.Immutable {
 			continue
 		}
+		val := jen.Id("request").Dot("GetUpdate()").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name)))
+		if v.Type.Type == field.TypeTime {
+			val = val.Dot("AsTime()")
+		}
 		fields = append(
 			fields,
 			jen.If(jen.Id("request").Dot("GetUpdate()").Dot(text.ProtoPascal(v.Name)).Op("!=").Nil()).Block(
-				jen.Id("update").Dot(fmt.Sprintf("Set%s", text.EntPascal(v.Name))).Call(
-					jen.Id("request").Dot("GetUpdate()").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name))),
-				),
+				jen.Id("update").Dot(fmt.Sprintf("Set%s", text.EntPascal(v.Name))).Call(val),
 			).Line(),
 		)
 	}
 	s.serviceFunc(file, node.Name, "Update", fmt.Sprintf("Update%sRequest", node.Name), fmt.Sprintf("Update%sResponse", node.Name)).
 		Block(
-			define("update").Id("s").Dot("client").Dot("UpdateOneID").Call(EntID(node, jen.Id("request").Dot("GetId").Call())),
+			define("update").Id("s").Dot("client").Dot("UpdateOneID").Call(EntID(node, jen.Id("request").Dot("GetId()"))),
 			jen.Add(fields...),
 			define("_", "err").Id("update").Dot("Save").Call(jen.Id("ctx")),
 			ifErr(),
@@ -466,7 +472,7 @@ func (s *serviceBuilder) funcSet(file *jen.File, node *gen.Type) {
 			fmt.Sprintf("Set%s%sResponse", node.Name, text.ProtoPascal(v.Name)),
 		).Block(
 			define("_", "err").Id("s").Dot("client").
-				Dot("UpdateOneID").Call(EntID(node, jen.Id("request").Dot("GetId").Call())).
+				Dot("UpdateOneID").Call(EntID(node, jen.Id("request").Dot("GetId()"))).
 				Dot(fmt.Sprintf("Set%s", text.EntPascal(v.Name))).Call(jen.Id("request").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name)))).
 				Dot("Save").Call(jen.Id("ctx")),
 			ifErr(),
@@ -481,7 +487,7 @@ func (s *serviceBuilder) funcDelete(file *jen.File, node *gen.Type) {
 	s.serviceFunc(file, node.Name, "Delete", fmt.Sprintf("Delete%sRequest", node.Name), fmt.Sprintf("Delete%sResponse", node.Name)).
 		Block(
 			define("err").Id("s").Dot("client").
-				Dot("DeleteOneID").Call(EntID(node, jen.Id("request").Dot("GetId").Call())).
+				Dot("DeleteOneID").Call(EntID(node, jen.Id("request").Dot("GetId()"))).
 				Dot("Exec").Call(jen.Id("ctx")),
 			ifErr(),
 			jen.Return(jen.Op("&").Qual(s.protoPackage, fmt.Sprintf("Delete%sResponse", node.Name)).Block(), jen.Nil()),
