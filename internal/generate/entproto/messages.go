@@ -155,10 +155,18 @@ func MethodSetMessages() ProtoMessageBuildFunc {
 			if opt.Immutable || !opt.Settable {
 				continue
 			}
+			entType := field.Type.Type
+			if opt.Type > 0 {
+				entType = opt.Type
+			}
+			set := protobuilder.NewField(protoreflect.Name(field.Name), EntityTypeMapping.Mapping(entType))
+			if opt.TypeRepeated {
+				set.SetRepeated()
+			}
 			request := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Set%s%sRequest", node.Name, strcase.ToCamel(field.Name)))).
 				AddField(protobuilder.NewField("id", EntityTypeMapping.Mapping(node.IDType.Type))).
 				AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options))).
-				AddField(protobuilder.NewField(protoreflect.Name(field.Name), EntityTypeMapping.Mapping(field.Type.Type)))
+				AddField(set)
 			response := protobuilder.NewMessage(protoreflect.Name(fmt.Sprintf("Set%s%sResponse", node.Name, strcase.ToCamel(field.Name)))).
 				AddField(protobuilder.NewField("rows", protobuilder.FieldTypeInt32()))
 			ms = append(ms, request, response)

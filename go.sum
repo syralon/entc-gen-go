@@ -67,6 +67,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/syralon/entc-gen-go/pkg/annotations v0.0.2-alpha h1:gLAusQN+aODCHF04IAiQUohoiX4ds7z6IMMk9Mqdpw0=
 github.com/syralon/entc-gen-go/pkg/annotations v0.0.2-alpha/go.mod h1:YDUHZNOpgGHb5vpmY7H69LRMICMTF/zvP4vclKQUZiw=
+github.com/syralon/entc-gen-go/pkg/annotations v0.0.2-alpha.0.20251202083331-df04e45df67a h1:li/pdfgrSzJevOIEExTKZIEvOahTT5GZuUtYFhKPkew=
+github.com/syralon/entc-gen-go/pkg/annotations v0.0.2-alpha.0.20251202083331-df04e45df67a/go.mod h1:YDUHZNOpgGHb5vpmY7H69LRMICMTF/zvP4vclKQUZiw=
 github.com/syralon/entc-gen-go/proto v0.0.2-alpha h1:iTeXUtS0/LrsukJ3qMpRur/0ElI+V3ywKV30iQrcoLs=
 github.com/syralon/entc-gen-go/proto v0.0.2-alpha/go.mod h1:JMowagUlmC+YbkujHIGqvIVSFkYQ+cmH7I8gZsgBm5w=
 github.com/zclconf/go-cty v1.14.4 h1:uXXczd9QDGsgu0i/QFR/hzI5NYCHLf6NQw/atrbnhq8=

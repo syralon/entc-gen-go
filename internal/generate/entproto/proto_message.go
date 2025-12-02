@@ -125,13 +125,21 @@ func (m *messages) fields(mb *protobuilder.MessageBuilder, node *gen.Type) error
 		if m.skip(fieldOpts) {
 			continue
 		}
-		fieldType := m.mapping.Mapping(v.Type.Type)
+		var entType = v.Type.Type
+		if fieldOpts.Type > 0 {
+			entType = fieldOpts.Type
+		}
+		fieldType := m.mapping.Mapping(entType)
 		if fieldType == nil {
 			return fmt.Errorf("unsupported entity type: %s", v.Type.Type)
 		}
 		fb := protobuilder.NewField(protoreflect.Name(v.Name), fieldType)
 		fb.SetComments(LeadingComment(v.Comment()))
-		fb.SetProto3Optional(v.Optional || m.optional)
+		if fieldOpts.TypeRepeated {
+			fb.SetRepeated()
+		} else {
+			fb.SetProto3Optional(v.Optional || m.optional)
+		}
 		if doc, err := openapi.GetSchema(v.Annotations); err != nil {
 			return fmt.Errorf("invalid openapi annotation on field %s.%s: %w", node.Name, v.Name, err)
 		} else if doc != nil {

@@ -32,7 +32,6 @@ func (s *serviceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, er
 
 	s.orderMapping(file, node)
 	s.funcToProto(file, node)
-	s.funcFromProto(file, node)
 	s.serviceStruct(file, node)
 
 	s.funcSet(file, node)
@@ -60,20 +59,35 @@ func (s *serviceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, er
 func (s *serviceBuilder) funcToProto(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
+	jen.If(jen.Id("data").Op("==").Nil()).Block(jen.Return(jen.Nil()))
+
 	var fields []jen.Code
 	fields = append(
 		fields,
 		jen.Id("Id").Op(":").Add(EntID(node, jen.Id("data").Dot("ID"))).Op(","),
 	)
 	for _, fi := range node.Fields {
-		v := jen.Id(text.ProtoPascal(fi.Name)).Op(":")
+		var v *jen.Statement
 		if fi.Type.Type == field.TypeTime {
-			v = v.Qual(timestamppb, "New").
-				Call(jen.Id("data").Op(".").Id(text.EntPascal(fi.Name))).Op(",")
+			v = jen.Qual(timestamppb, "New").
+				Call(jen.Id("data").Dot(text.EntPascal(fi.Name)))
 		} else {
-			v = v.Id("data").Op(".").Id(text.EntPascal(fi.Name)).Op(",")
+			v = jen.Id("data").Dot(text.EntPascal(fi.Name))
 		}
-		fields = append(fields, v)
+		v = unwrap(fi, v)
+		fields = append(fields, jen.Id(text.ProtoPascal(fi.Name)).Op(":").Add(v).Op(","))
+	}
+	for _, fi := range node.Edges {
+		var v *jen.Statement
+		if fi.Unique {
+			v = jen.Id(fmt.Sprintf("%sToProto", fi.Type.Name)).Call(jen.Id("data").Dot("Edges").Dot(text.EntPascal(fi.Name)))
+		} else {
+			v = jen.Id("Trans").Call(
+				jen.Id("data").Dot("Edges").Dot(text.EntPascal(fi.Name)),
+				jen.Id(fmt.Sprintf("%sToProto", fi.Type.Name)),
+			)
+		}
+		fields = append(fields, jen.Id(text.ProtoPascal(fi.Name)).Op(":").Add(v).Op(","))
 	}
 
 	file.Func().
@@ -152,6 +166,13 @@ func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 	defer file.Line()
 	var fields = make([]*jen.Statement, 0, len(node.Fields))
 	for _, item := range node.Fields {
+		fieldOpts, err := entproto.GetFieldOptions(item.Annotations)
+		if err != nil {
+			return
+		}
+		if !fieldOpts.Filterable {
+			continue
+		}
 		fields = append(
 			fields,
 			// request.GetOptions().GetXXX().Selector()
@@ -164,6 +185,13 @@ func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 	for _, edge := range node.Edges {
 		var edgeFields []*jen.Statement
 		for _, ef := range edge.Type.Fields {
+			fieldOpts, err := entproto.GetFieldOptions(ef.Annotations)
+			if err != nil {
+				return
+			}
+			if !fieldOpts.Filterable {
+				continue
+			}
 			edgeFields = append(
 				edgeFields,
 				jen.Id("e").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(ef.Name))).Dot("Selector").
@@ -216,7 +244,13 @@ func (s *serviceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 		}
 		var fields []*jen.Statement
 		for _, v := range edge.Type.Fields {
-			//fields = append(fields, chain("request", "Options", text.ProtoPascal(v.Name), "Selector").Call(
+			fieldOpts, err := entproto.GetFieldOptions(v.Annotations)
+			if err != nil {
+				return
+			}
+			if !fieldOpts.Filterable {
+				continue
+			}
 			fields = append(fields, jen.Id("request").Dot("GetOptions()").Dot("Get"+text.ProtoPascal(v.Name)).Call().Dot("Selector").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(edge.Type.Name)), fmt.Sprintf("Field%s", text.EntPascal(v.Name))),
 			))
@@ -397,6 +431,7 @@ func (s *serviceBuilder) funcCreate(file *jen.File, node *gen.Type) {
 		if v.Type.Type == field.TypeTime {
 			val = val.Dot("AsTime()")
 		}
+		val = wrap(v, val)
 		create = create.Op(".").Id("\n").Id(fmt.Sprintf("Set%s", text.EntPascal(v.Name))).Call(val)
 	}
 	//fn := s.serviceFunc(file, "Create", node.Name)
@@ -434,6 +469,7 @@ func (s *serviceBuilder) funcUpdate(file *jen.File, node *gen.Type) {
 		if v.Type.Type == field.TypeTime {
 			val = val.Dot("AsTime()")
 		}
+		val = wrap(v, val)
 		fields = append(
 			fields,
 			jen.If(jen.Id("request").Dot("GetUpdate()").Dot(text.ProtoPascal(v.Name)).Op("!=").Nil()).Block(

@@ -104,9 +104,16 @@ func ProtoID(n *gen.Type, v *jen.Statement) *jen.Statement {
 	}
 }
 
-func ternary(v bool, a, b *jen.Statement) *jen.Statement {
-	if v {
-		return a
+func wrap(f *gen.Field, v *jen.Statement) *jen.Statement {
+	if f.Type.RType == nil || f.Type.RType.PkgPath == "" {
+		return v
 	}
-	return b
+	return jen.Qual(f.Type.RType.PkgPath, f.Type.RType.Name).Call(v)
+}
+
+func unwrap(f *gen.Field, v *jen.Statement) *jen.Statement {
+	if f.Type.RType == nil || f.Type.RType.PkgPath == "" {
+		return v
+	}
+	return jen.Id(f.Type.RType.Kind.String()).Call(v)
 }
