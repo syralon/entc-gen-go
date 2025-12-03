@@ -2,10 +2,13 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
+	"github.com/go-kratos/kratos/v2/log"
+	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/go-kratos/kratos/v2/transport/http"
 	"go.opentelemetry.io/otel"
@@ -26,6 +29,8 @@ var (
 	Version string
 	// flagconf is the config flag.
 	flagconf string
+
+	id, _ = os.Hostname()
 )
 
 func init() {
@@ -33,11 +38,20 @@ func init() {
 }
 
 func newApp(hs *http.Server, gs *grpc.Server) *kratos.App {
+	logger := log.With(log.NewStdLogger(os.Stdout),
+		"ts", log.DefaultTimestamp,
+		"caller", log.DefaultCaller,
+		"service.id", id,
+		"service.name", Name,
+		"service.version", Version,
+		"trace.id", tracing.TraceID(),
+		"span.id", tracing.SpanID(),
+	)
 	return kratos.New(
 		kratos.Name(Name),
 		kratos.Version(Version),
 		kratos.Metadata(map[string]string{}),
-		//kratos.Logger(logger),
+		kratos.Logger(logger),
 		kratos.Server(
 			hs,
 			gs,
@@ -46,23 +60,27 @@ func newApp(hs *http.Server, gs *grpc.Server) *kratos.App {
 }
 
 // Set global trace provider
-func setTracerProvider(url string) error {
-	// Create the Jaeger exporter
-	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
-	if err != nil {
-		return err
-	}
-	tp := tracesdk.NewTracerProvider(
+func setTracerProvider(trace *conf.Trace) error {
+	opts := []tracesdk.TracerProviderOption{
 		// Set the sampling rate based on the parent span to 100%
 		tracesdk.WithSampler(tracesdk.ParentBased(tracesdk.TraceIDRatioBased(1.0))),
-		// Always be sure to batch in production.
-		tracesdk.WithBatcher(exp),
 		// Record information about this application in an Resource.
 		tracesdk.WithResource(resource.NewSchemaless(
 			semconv.ServiceNameKey.String(Name),
 			attribute.String("env", "dev"),
 		)),
-	)
+	}
+	if trace != nil {
+		// Create the Jaeger exporter
+		exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(trace.Endpoint)))
+		if err != nil {
+			return err
+		}
+		// Always be sure to batch in production.
+		opts = append(opts, tracesdk.WithBatcher(exp))
+	}
+
+	tp := tracesdk.NewTracerProvider(opts...)
 	otel.SetTracerProvider(tp)
 	return nil
 }
@@ -84,7 +102,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := setTracerProvider(bc.Trace.Endpoint); err != nil {
+	if err := setTracerProvider(bc.Trace); err != nil {
 		panic(err)
 	}
 
