@@ -11,7 +11,7 @@ import (
 	"{{.module}}/internal/conf"
 	"{{.module}}/internal/data"
 	"{{.module}}/internal/server"
-	"{{.module}}/internal/service"
+	"{{.module}}/internal/controller"
 )
 
 // initApp init kratos application.
@@ -19,7 +19,7 @@ func initApp(*conf.Server, *conf.Data) (*kratos.App, func(), error) {
 	panic(wire.Build(
 		server.ProviderSet,
 		data.ProviderSet,
-		service.ProviderSet,
+		controller.ProviderSet,
 		newApp,
 	))
 }

@@ -83,6 +83,16 @@ func (b *builder) renders(data any, m map[string]*output) error {
 	return nil
 }
 
+func (b *builder) generate(ctx context.Context, node *gen.Type, g interface {
+	Build(_ context.Context, node *gen.Type) (*jen.File, error)
+}, filename string) error {
+	file, err := g.Build(ctx, node)
+	if err != nil {
+		return err
+	}
+	return b.write(file, filename)
+}
+
 func (b *builder) write(file *jen.File, filename string) error {
 	filename = path.Join(b.output, filename)
 	_ = os.MkdirAll(path.Dir(filename), 0700)
@@ -104,20 +114,19 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		"services":             services,
 	}
 	if err := b.renders(data, map[string]*output{
-		"config.go.tpl":           out("internal/conf/config.go", b.overwrite),
-		"config.proto.tpl":        out("internal/conf/config.proto", b.overwrite),
-		"config.yaml.tpl":         out("config.yaml", b.overwrite),
-		"data.go.tpl":             out("internal/data/data.go", b.overwrite),
-		"data_provider.go.tpl":    out("internal/data/provider.go", b.overwrite),
-		"helper.go.tpl":           out("internal/service/helper.go", b.overwrite),
-		"main.go.tpl":             out(path.Join("cmd", path.Base(module), "main.go"), b.overwrite),
-		"Makefile.tpl":            out("Makefile", b.overwrite),
-		"server_grpc.go.tpl":      out("internal/server/grpc.go", b.overwrite),
-		"server_http.go.tpl":      out("internal/server/http.go", b.overwrite),
-		"server_provider.go.tpl":  out("internal/server/provider.go", b.overwrite),
-		"service_provider.go.tpl": out("internal/service/provider.go", b.overwrite),
-		"wire.go.tpl":             out(path.Join("cmd", path.Base(module), "wire.go"), b.overwrite),
-		"wire_gen.go.tpl":         out(path.Join("cmd", path.Base(module), "wire_gen.go"), b.overwrite),
+		"config.go.tpl":          out("internal/conf/config.go", b.overwrite),
+		"config.proto.tpl":       out("internal/conf/config.proto", b.overwrite),
+		"config.yaml.tpl":        out("config.yaml", b.overwrite),
+		"data.go.tpl":            out("internal/data/data.go", b.overwrite),
+		"data_provider.go.tpl":   out("internal/data/provider.go", b.overwrite),
+		"helper.go.tpl":          out("internal/service/helper.go", b.overwrite),
+		"main.go.tpl":            out(path.Join("cmd", path.Base(module), "main.go"), b.overwrite),
+		"Makefile.tpl":           out("Makefile", b.overwrite),
+		"server_grpc.go.tpl":     out("internal/server/grpc.go", b.overwrite),
+		"server_http.go.tpl":     out("internal/server/http.go", b.overwrite),
+		"server_provider.go.tpl": out("internal/server/provider.go", b.overwrite),
+		"wire.go.tpl":            out(path.Join("cmd", path.Base(module), "wire.go"), b.overwrite),
+		"wire_gen.go.tpl":        out(path.Join("cmd", path.Base(module), "wire_gen.go"), b.overwrite),
 	}); err != nil {
 		return err
 	}
@@ -125,16 +134,26 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		entPackage:   path.Join(module, "ent"),
 		protoPackage: protoModule,
 	}
+	cb := &controllerBuilder{
+		pkg:        module,
+		entPackage: path.Join(module, "ent"),
+	}
 	for _, node := range graph.Nodes {
-		file, err := sb.Build(ctx, node)
-		if err != nil {
+		if err := b.generate(ctx, node, sb, fmt.Sprintf("internal/service/%sservice.go", strings.ToLower(node.Name))); err != nil {
 			return err
 		}
-		if err = b.write(file, fmt.Sprintf("internal/service/%sservice.go", strings.ToLower(node.Name))); err != nil {
+		if err := b.generate(ctx, node, cb, fmt.Sprintf("internal/controller/%sservice/service.go", strings.ToLower(node.Name))); err != nil {
 			return err
 		}
 	}
-	if err := b.service(ctx, module, graph); err != nil {
+	file, err := controllerProvider(module, path.Join(module, "ent"), protoModule, graph)
+	if err != nil {
+		return err
+	}
+	if err = b.write(file, "internal/controller/provider.go"); err != nil {
+		return err
+	}
+	if err = b.service(ctx, module, graph); err != nil {
 		return err
 	}
 	return nil

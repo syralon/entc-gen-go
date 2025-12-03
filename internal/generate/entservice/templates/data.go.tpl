@@ -6,7 +6,7 @@ import (
 	"{{.module}}/ent"
 	"{{.module}}/internal/conf"
 
-    # _ "github.com/mattn/go-sqlite3"
+    // _ "github.com/mattn/go-sqlite3"
     _ "github.com/go-sql-driver/mysql"
 )
 

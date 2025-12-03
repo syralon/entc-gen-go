@@ -6,11 +6,11 @@ import (
 	"github.com/go-kratos/kratos/v2/transport/http"
 
     "{{.module}}/internal/conf"
-    "{{.module}}/internal/service"
+    "{{.module}}/internal/controller"
     pb "{{.proto_package}}"
 )
 
-func NewHTTPServer(c *conf.Server, services *service.Services) *http.Server {
+func NewHTTPServer(c *conf.Server, services *controller.Services) *http.Server {
 	opts := []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
