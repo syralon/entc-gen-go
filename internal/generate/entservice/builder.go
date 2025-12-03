@@ -1,6 +1,7 @@
 package entservice
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -31,6 +32,10 @@ func WithOverwrite(overwrite bool) Option {
 	return func(b *builder) {
 		b.overwrite = overwrite
 	}
+}
+
+type Builder interface {
+	Build(_ context.Context, node *gen.Type) (*jen.File, error)
 }
 
 type builder struct {
@@ -83,9 +88,7 @@ func (b *builder) renders(data any, m map[string]string) error {
 	return nil
 }
 
-func (b *builder) generate(ctx context.Context, node *gen.Type, g interface {
-	Build(_ context.Context, node *gen.Type) (*jen.File, error)
-}, filename string, overwrite bool) error {
+func (b *builder) generate(ctx context.Context, node *gen.Type, g Builder, filename string, overwrite bool) error {
 	file, err := g.Build(ctx, node)
 	if err != nil {
 		return err
@@ -102,6 +105,40 @@ func (b *builder) write(file *jen.File, filename string, overwrite bool) error {
 	}
 	_ = os.MkdirAll(path.Dir(filename), 0700)
 	return file.Save(filename)
+}
+
+func (b *builder) rewrite(file *jen.File, filename string, overwrite bool) error {
+	filename = path.Join(b.output, filename)
+	if !overwrite {
+		if _, err := os.Stat(filename); err == nil || !os.IsNotExist(err) {
+			return nil
+		}
+	}
+	_ = os.MkdirAll(path.Dir(filename), 0700)
+	buf := &bytes.Buffer{}
+	if err := file.Render(buf); err != nil {
+		return err
+	}
+	out, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	var afterPkg bool
+	for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			_, _ = out.Write([]byte("\n"))
+			continue
+		}
+		if afterPkg {
+			line = append([]byte("// "), line...)
+		} else {
+			afterPkg = bytes.HasPrefix(line, []byte("package"))
+		}
+		_, _ = out.Write(append(line, '\n'))
+	}
+	return nil
 }
 
 func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
@@ -149,6 +186,15 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		}
 		if err := b.generate(ctx, node, cb, fmt.Sprintf("internal/controller/%sservice/service.go", strings.ToLower(node.Name)), b.overwrite); err != nil {
 			return err
+		}
+		methods, err := customControllerMethod(protoModule, node)
+		if err != nil {
+			return err
+		}
+		for filename, m := range methods {
+			if err = b.rewrite(m, filename, b.overwrite); err != nil {
+				return err
+			}
 		}
 	}
 	file, err := controllerProvider(module, path.Join(module, "ent"), protoModule, graph)
