@@ -23,11 +23,16 @@ openapi:
 conf:
 	protoc -I . --go_out=paths=source_relative:. internal/conf/*.proto
 
-
 .PHONY: proto
 # generate all proto code
 proto:
 	make grpc http gateway openapi
+
+.PHONY: generate
+generate:
+	make proto
+	make conf
+	go generate ./...
 
 # show help
 help:

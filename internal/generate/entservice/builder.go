@@ -1,6 +1,7 @@
 package entservice
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -33,6 +34,10 @@ func WithOverwrite(overwrite bool) Option {
 	}
 }
 
+type Builder interface {
+	Build(_ context.Context, node *gen.Type) (*jen.File, error)
+}
+
 type builder struct {
 	output     string
 	overwrite  bool
@@ -58,9 +63,9 @@ func NewBuilder(opts ...Option) entcgen.Generator {
 	return b
 }
 
-func (b *builder) render(data any, name string, o *output) error {
-	filename := path.Join(b.output, o.filename)
-	if !o.overwrite {
+func (b *builder) render(data any, name, filename string) error {
+	filename = path.Join(b.output, filename)
+	if !b.overwrite {
 		if _, err := os.Stat(filename); err == nil || !os.IsNotExist(err) {
 			return nil
 		}
@@ -74,29 +79,66 @@ func (b *builder) render(data any, name string, o *output) error {
 	return b.templates.ExecuteTemplate(file, name, data)
 }
 
-func (b *builder) renders(data any, m map[string]*output) error {
-	for name, o := range m {
-		if err := b.render(data, name, o); err != nil {
+func (b *builder) renders(data any, m map[string]string) error {
+	for name, filename := range m {
+		if err := b.render(data, name, filename); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (b *builder) generate(ctx context.Context, node *gen.Type, g interface {
-	Build(_ context.Context, node *gen.Type) (*jen.File, error)
-}, filename string) error {
+func (b *builder) generate(ctx context.Context, node *gen.Type, g Builder, filename string, overwrite bool) error {
 	file, err := g.Build(ctx, node)
 	if err != nil {
 		return err
 	}
-	return b.write(file, filename)
+	return b.write(file, filename, overwrite)
 }
 
-func (b *builder) write(file *jen.File, filename string) error {
+func (b *builder) write(file *jen.File, filename string, overwrite bool) error {
 	filename = path.Join(b.output, filename)
+	if !overwrite {
+		if _, err := os.Stat(filename); err == nil || !os.IsNotExist(err) {
+			return nil
+		}
+	}
 	_ = os.MkdirAll(path.Dir(filename), 0700)
 	return file.Save(filename)
+}
+
+func (b *builder) rewrite(file *jen.File, filename string, overwrite bool) error {
+	filename = path.Join(b.output, filename)
+	if !overwrite {
+		if _, err := os.Stat(filename); err == nil || !os.IsNotExist(err) {
+			return nil
+		}
+	}
+	_ = os.MkdirAll(path.Dir(filename), 0700)
+	buf := &bytes.Buffer{}
+	if err := file.Render(buf); err != nil {
+		return err
+	}
+	out, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	var afterPkg bool
+	for _, line := range bytes.Split(buf.Bytes(), []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			_, _ = out.Write([]byte("\n"))
+			continue
+		}
+		if afterPkg {
+			line = append([]byte("// "), line...)
+		} else {
+			afterPkg = bytes.HasPrefix(line, []byte("package"))
+		}
+		_, _ = out.Write(append(line, '\n'))
+	}
+	return nil
 }
 
 func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
@@ -113,20 +155,20 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		"proto_path":           text.ProtoModule(b.rootModule),
 		"services":             services,
 	}
-	if err := b.renders(data, map[string]*output{
-		"config.go.tpl":          out("internal/conf/config.go", b.overwrite),
-		"config.proto.tpl":       out("internal/conf/config.proto", b.overwrite),
-		"config.yaml.tpl":        out("config.yaml", b.overwrite),
-		"data.go.tpl":            out("internal/data/data.go", b.overwrite),
-		"data_provider.go.tpl":   out("internal/data/provider.go", b.overwrite),
-		"helper.go.tpl":          out("internal/service/helper.go", b.overwrite),
-		"main.go.tpl":            out(path.Join("cmd", path.Base(module), "main.go"), b.overwrite),
-		"Makefile.tpl":           out("Makefile", b.overwrite),
-		"server_grpc.go.tpl":     out("internal/server/grpc.go", b.overwrite),
-		"server_http.go.tpl":     out("internal/server/http.go", b.overwrite),
-		"server_provider.go.tpl": out("internal/server/provider.go", b.overwrite),
-		"wire.go.tpl":            out(path.Join("cmd", path.Base(module), "wire.go"), b.overwrite),
-		"wire_gen.go.tpl":        out(path.Join("cmd", path.Base(module), "wire_gen.go"), b.overwrite),
+	if err := b.renders(data, map[string]string{
+		"config.go.tpl":          "internal/conf/config.go",
+		"config.proto.tpl":       "internal/conf/config.proto",
+		"config.yaml.tpl":        "config.yaml",
+		"data.go.tpl":            "internal/data/data.go",
+		"data_provider.go.tpl":   "internal/data/provider.go",
+		"helper.go.tpl":          "internal/service/helper.go",
+		"main.go.tpl":            path.Join("cmd", path.Base(module), "main.go"),
+		"Makefile.tpl":           "Makefile",
+		"server_grpc.go.tpl":     "internal/server/grpc.go",
+		"server_http.go.tpl":     "internal/server/http.go",
+		"server_provider.go.tpl": "internal/server/provider.go",
+		"wire.go.tpl":            path.Join("cmd", path.Base(module), "wire.go"),
+		"wire_gen.go.tpl":        path.Join("cmd", path.Base(module), "wire_gen.go"),
 	}); err != nil {
 		return err
 	}
@@ -139,45 +181,28 @@ func (b *builder) Generate(ctx context.Context, graph *gen.Graph) error {
 		entPackage: path.Join(module, "ent"),
 	}
 	for _, node := range graph.Nodes {
-		if err := b.generate(ctx, node, sb, fmt.Sprintf("internal/service/%sservice.go", strings.ToLower(node.Name))); err != nil {
+		if err := b.generate(ctx, node, sb, fmt.Sprintf("internal/service/%sservice.go", strings.ToLower(node.Name)), true); err != nil {
 			return err
 		}
-		if err := b.generate(ctx, node, cb, fmt.Sprintf("internal/controller/%sservice/service.go", strings.ToLower(node.Name))); err != nil {
+		if err := b.generate(ctx, node, cb, fmt.Sprintf("internal/controller/%sservice/service.go", strings.ToLower(node.Name)), b.overwrite); err != nil {
 			return err
+		}
+		methods, err := customControllerMethod(protoModule, node)
+		if err != nil {
+			return err
+		}
+		for filename, m := range methods {
+			if err = b.rewrite(m, filename, b.overwrite); err != nil {
+				return err
+			}
 		}
 	}
 	file, err := controllerProvider(module, path.Join(module, "ent"), protoModule, graph)
 	if err != nil {
 		return err
 	}
-	if err = b.write(file, "internal/controller/provider.go"); err != nil {
-		return err
-	}
-	if err = b.service(ctx, module, graph); err != nil {
+	if err = b.write(file, "internal/controller/provider.go", b.overwrite); err != nil {
 		return err
 	}
 	return nil
-}
-
-func (b *builder) service(_ context.Context, module string, graph *gen.Graph) error {
-	entPkg := path.Join(module, "ent")
-	var fields []jen.Code
-	var blocks []jen.Code
-	for _, node := range graph.Nodes {
-		fields = append(
-			fields,
-			jen.Id(fmt.Sprintf("%sService", node.Name)).Op("*").Id(fmt.Sprintf("%sService", node.Name)),
-		)
-		blocks = append(
-			blocks,
-			jen.Id(fmt.Sprintf("New%sService", node.Name)).Call(jen.Id("client")).Op(","),
-		)
-	}
-
-	file := jen.NewFile("service")
-	file.Type().Id("Services").Struct(fields...).Line()
-	file.Func().Id("NewServices").Params(jen.Id("client").Op("*").Qual(entPkg, "Client")).Op("*").Id("Services").Block(
-		jen.Return(jen.Op("&").Id("Services").Block(blocks...)),
-	)
-	return b.write(file, "internal/service/services.go")
 }
