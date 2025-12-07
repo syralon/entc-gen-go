@@ -2,6 +2,7 @@ package entcgen
 
 import (
 	"context"
+
 	"entgo.io/ent/entc/gen"
 )
 

@@ -1,84 +1,45 @@
 package entproto
 
 import (
-	"fmt"
-	"os"
-	"path"
+	"context"
 
-	"github.com/syralon/entc-gen-go/internal/entcgen"
-	"github.com/syralon/entc-gen-go/internal/tools/text"
+	"entgo.io/ent/entc/gen"
+	"github.com/jhump/protoreflect/v2/protobuilder"
+	"github.com/jhump/protoreflect/v2/protoprint"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-func NewEntityBuilder(path, pkg, goPkg string) ProtoFileBuilder {
-	return NewFile(
-		WithFilename(path),
-		WithPackage(pkg),
-		WithGoPackage(goPkg),
-		WithMessageBuilder(
-			NewMessage(
-				WithTypeMapping(EntityTypeMapping),
-			),
-		),
-	)
+type ProtoBuilder interface {
+	Build(ctx *Context, graph *gen.Graph) ([]*protobuilder.FileBuilder, error)
 }
 
-func NewGRPCBuilder(filename, pkg, goPkg string) ProtoFileBuilder {
-	return NewFile(
-		WithFilename(filename),
-		WithPackage(pkg),
-		WithGoPackage(goPkg),
-		WithEnumBuilder(&orderEnumBuilder{}),
-		WithMessageBuilder(
-			OptionMessages(),
-			UpdateMessages(),
-			ListOrderMessage(),
-			MethodGetMessages(),
-			MethodListMessages(),
-			MethodCreateMessages(),
-			MethodUpdateMessages(),
-			MethodDeleteMessages(),
-			MethodSetMessages(),
-			MethodListEdgesMessage(),
-			MethodGetEdgesMessage(),
-		),
-		WithServiceBuilder(
-			GRPCServiceBuilder(),
-		),
-	)
+type Generator struct {
+	output       string
+	protoPackage string
+	goPackage    string
+	printer      *protoprint.Printer
+
+	builders []ProtoBuilder
 }
 
-func New(module, output string) entcgen.Generator {
-	// module = github.com/example/hello
-	// output = api
-	// --------------------------------------
-	// protoModule = proto/example/hello
-	// protoPackage = example.hello
-	// goPackage = github.com/example/hello/api/proto/example/hello;hello
+func (g *Generator) Generate(c context.Context, graph *gen.Graph) error {
+	ctx := NewContext(c)
+	var files []*protobuilder.FileBuilder
+	for _, bu := range g.builders {
+		f, err := bu.Build(ctx, graph)
+		if err != nil {
+			return err
+		}
+		files = append(files, f...)
+	}
 
-	protoModule := text.ProtoModule(module)
-	protoPackage := text.ProtoPackage(module)
-	goPackage := path.Join(module, output, protoModule) + ";" + path.Base(module)
-	generate(module, protoModule, output)
-	return NewProto(
-		WithProtoOutput(output),
-		WithBuilder(
-			NewEntityBuilder(path.Join(protoModule, "ent.proto"), protoPackage, goPackage),
-			NewGRPCBuilder(path.Join(protoModule, "ent_service.proto"), protoPackage, goPackage),
-		),
-	)
-}
-
-func generate(module, protoModule, output string) {
-	content := []byte(fmt.Sprintf(
-		"package %s\n\n"+
-			"//go:generate protoc -I . "+
-			"--go_out=paths=source_relative:. "+
-			"--go-grpc_out=paths=source_relative:. "+
-			"--go-http_out=paths=source_relative:. "+
-			"--grpc-gateway_out=paths=source_relative:. "+
-			"%s\n",
-		path.Base(path.Join(module, output)),
-		path.Join(protoModule, "*.proto"),
-	))
-	_ = os.WriteFile(path.Join(output, "generate.go"), content, 644)
+	var descriptors = make([]protoreflect.FileDescriptor, 0, len(files))
+	for _, file := range files {
+		descriptor, err := file.Build()
+		if err != nil {
+			return err
+		}
+		descriptors = append(descriptors, descriptor)
+	}
+	return g.printer.PrintProtosToFileSystem(descriptors, g.output)
 }

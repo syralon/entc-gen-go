@@ -2,6 +2,7 @@ package entproto
 
 import (
 	"fmt"
+
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -11,6 +12,8 @@ type ProtoType int
 const (
 	Protoenum ProtoType = iota + 1
 	Protomessage
+	Protoservice
+	Protomethod
 )
 
 //go:generate stringer -type ErrorReason -trimprefix ErrorReason

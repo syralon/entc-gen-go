@@ -1,9 +1,10 @@
 package entproto
 
 import (
+	"fmt"
+
 	"entgo.io/ent/entc/gen"
 	"entgo.io/ent/schema/field"
-	"fmt"
 	openapiv3 "github.com/google/gnostic/openapiv3"
 	"github.com/jhump/protoreflect/v2/protobuilder"
 	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"
@@ -14,28 +15,6 @@ import (
 )
 
 type MessageOption func(*MessageBuildHelper)
-
-func WithNameFunc(fn func(node *gen.Type) protoreflect.Name) MessageOption {
-	return func(builder *MessageBuildHelper) {
-		builder.nameFunc = fn
-	}
-}
-
-func WithOriginName() MessageOption {
-	return WithNameFunc(func(node *gen.Type) protoreflect.Name {
-		return protoreflect.Name(node.Name)
-	})
-}
-
-func WithFormatName(format string) MessageOption {
-	return WithNameFunc(func(node *gen.Type) protoreflect.Name {
-		return protoreflect.Name(fmt.Sprintf(format, node.Name))
-	})
-}
-
-func WithStringName(name string) MessageOption {
-	return WithNameFunc(func(*gen.Type) protoreflect.Name { return protoreflect.Name(name) })
-}
 
 func WithTypeMapping(mapping TypeMapping) MessageOption {
 	return func(builder *MessageBuildHelper) {
@@ -79,7 +58,6 @@ func WithSkipID(b bool) MessageOption {
 }
 
 type MessageBuildHelper struct {
-	nameFunc      func(node *gen.Type) protoreflect.Name
 	edgeNameFunc  func(node *gen.Type) protoreflect.Name
 	mapping       TypeMapping
 	optional      bool
@@ -91,7 +69,6 @@ type MessageBuildHelper struct {
 
 func NewMessageBuildHelper(opts ...MessageOption) *MessageBuildHelper {
 	mb := &MessageBuildHelper{
-		nameFunc:      func(node *gen.Type) protoreflect.Name { return protoreflect.Name(node.Name) },
 		mapping:       EntityTypeMapping,
 		optional:      false,
 		skipImmutable: false,
@@ -101,43 +78,37 @@ func NewMessageBuildHelper(opts ...MessageOption) *MessageBuildHelper {
 		opt(mb)
 	}
 	if mb.edgeNameFunc == nil {
-		mb.edgeNameFunc = mb.nameFunc
+		mb.edgeNameFunc = func(node *gen.Type) protoreflect.Name { return protoreflect.Name(node.Name) }
 	}
 	return mb
 }
 
-func (b *MessageBuildHelper) Build(node *gen.Type) (*protobuilder.MessageBuilder, func(*Context) error, error) {
-	name := b.nameFunc(node)
-	mb := protobuilder.NewMessage(name)
+func (b *MessageBuildHelper) Build(ctx *Context, mb *protobuilder.MessageBuilder, node *gen.Type) error {
 	if !b.skipID {
 		mb.AddField(protobuilder.NewField("id", b.mapping.Mapping(node.IDType.Type)))
 	}
 	if err := b.fields(mb, node); err != nil {
-		return nil, nil, err
+		return err
 	}
 	if doc, err := openapi.GetSchema(node.Annotations); err != nil {
-		return nil, nil, fmt.Errorf("invalid openapi annotation on entity %s: %w", node.Name, err)
+		return fmt.Errorf("invalid openapi annotation on entity %s: %w", node.Name, err)
 	} else if doc != nil {
 		messageOption := &descriptorpb.MessageOptions{}
 		proto.SetExtension(messageOption, openapiv3.E_Schema, doc)
 		mb.SetOptions(messageOption)
 	}
-
-	delay := func(ctx *Context) error {
-		for _, edge := range node.Edges {
-			m, err := ctx.GetMessage(b.edgeNameFunc(edge.Type))
-			if err != nil {
-				return err
-			}
-			fb := protobuilder.NewField(protoreflect.Name(edge.Name), protobuilder.FieldTypeMessage(m))
-			if !b.singleEdge && !edge.Unique {
-				fb.SetRepeated()
-			}
-			mb.AddField(fb)
+	for _, edge := range node.Edges {
+		m, err := ctx.GetMessage(b.edgeNameFunc(edge.Type))
+		if err != nil {
+			return err
 		}
-		return nil
+		fb := protobuilder.NewField(protoreflect.Name(edge.Name), protobuilder.FieldTypeMessage(m))
+		if !b.singleEdge && !edge.Unique {
+			fb.SetRepeated()
+		}
+		mb.AddField(fb)
 	}
-	return mb, delay, nil
+	return nil
 }
 
 func (b *MessageBuildHelper) fields(mb *protobuilder.MessageBuilder, node *gen.Type) error {
@@ -185,25 +156,25 @@ func (b *MessageBuildHelper) fields(mb *protobuilder.MessageBuilder, node *gen.T
 	return nil
 }
 
-type MessageBuilders []*MessageBuildHelper
-
-func (mb MessageBuilders) Build(node *gen.Type) ([]*protobuilder.MessageBuilder, func(*Context) error, error) {
-	var messages []*protobuilder.MessageBuilder
-	var fns []Delay
-	for _, b := range mb {
-		message, delay, err := b.Build(node)
-		if err != nil {
-			return nil, nil, err
-		}
-		messages = append(messages, message)
-		fns = append(fns, delay)
-	}
-	return messages, func(ctx *Context) error {
-		for _, fn := range fns {
-			if err := fn(ctx); err != nil {
-				return err
-			}
-		}
-		return nil
-	}, nil
-}
+//type MessageBuilders []*MessageBuildHelper
+//
+//func (mb MessageBuilders) Build(node *gen.Type) ([]*protobuilder.MessageBuilder, func(*Context) error, error) {
+//	var messages []*protobuilder.MessageBuilder
+//	var fns []Delay
+//	for _, b := range mb {
+//		message, delay, err := b.Build(node)
+//		if err != nil {
+//			return nil, nil, err
+//		}
+//		messages = append(messages, message)
+//		fns = append(fns, delay)
+//	}
+//	return messages, func(ctx *Context) error {
+//		for _, fn := range fns {
+//			if err := fn(ctx); err != nil {
+//				return err
+//			}
+//		}
+//		return nil
+//	}, nil
+//}
