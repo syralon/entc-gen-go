@@ -39,35 +39,32 @@ func NewServiceBuilder(options ...ServiceBuildOption) *ServiceBuilder {
 }
 
 func (b *ServiceBuilder) Build(ctx *Context, graph *gen.Graph) ([]*protobuilder.FileBuilder, error) {
-	var files = make([]*protobuilder.FileBuilder, 0, len(graph.Nodes))
+	file := ctx.NewFile(path.Join(b.path, "ent_service.proto"), b.protoPackage, b.goPackage)
 	for _, node := range graph.Nodes {
-		file, err := b.build(ctx, node)
+		err := b.build(ctx, file, node)
 		if err != nil {
 			return nil, err
 		}
-		files = append(files, file)
 	}
-	return files, nil
+	return []*protobuilder.FileBuilder{file}, nil
 }
 
-func (b *ServiceBuilder) build(ctx *Context, node *gen.Type) (*protobuilder.FileBuilder, error) {
-	filename := fmt.Sprintf("ent_%s_service.proto", strings.ToLower(node.Name))
-	file := ctx.NewFile(path.Join(b.path, filename), b.protoPackage, b.goPackage)
+func (b *ServiceBuilder) build(ctx *Context, file *protobuilder.FileBuilder, node *gen.Type) error {
 	if err := b.messages(ctx, file, node); err != nil {
-		return nil, err
+		return err
 	}
 	service := ctx.NewService(fmt.Sprintf("%sService", node.Name))
 	file.AddService(service)
 	if err := b.methods(ctx, file, service, node); err != nil {
-		return nil, err
+		return err
 	}
 	if err := b.methodEdges(ctx, file, service, node); err != nil {
-		return nil, err
+		return err
 	}
 	if err := b.methodSet(ctx, file, service, node); err != nil {
-		return nil, err
+		return err
 	}
-	return file, nil
+	return nil
 }
 
 func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, node *gen.Type) (err error) {
@@ -96,7 +93,8 @@ func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, 
 		WithTypeMapping(OperationTypeMapping),
 		WithForceOptional(true),
 		WithSingleEdge(true),
-		WithSkipFunc(func(opt entproto.FieldOptions) bool { return !opt.Filterable }),
+		WithSkipFunc(func(f *gen.Field, opt entproto.FieldOptions) bool { return !opt.Filterable }),
+		WithEdgeName(func(g *gen.Type) protoreflect.Name { return protoreflect.Name(fmt.Sprintf("%sOptions", g.Name)) }),
 	).Build(ctx, optionsMessage, node)
 	if err != nil {
 		return err
@@ -105,8 +103,9 @@ func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, 
 		WithTypeMapping(EntityTypeMapping),
 		WithForceOptional(true),
 		WithSingleEdge(true),
-		WithSkipFunc(func(opt entproto.FieldOptions) bool { return opt.Immutable }),
+		WithSkipFunc(func(f *gen.Field, opt entproto.FieldOptions) bool { return opt.Immutable }),
 		WithSkipID(true),
+		WithEdgeName(func(g *gen.Type) protoreflect.Name { return protoreflect.Name(fmt.Sprintf("%sUpdate", g.Name)) }),
 	).Build(ctx, update, node)
 	if err != nil {
 		return err
@@ -114,6 +113,10 @@ func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, 
 	err = NewMessageBuildHelper(
 		WithEdgeName(func(node *gen.Type) protoreflect.Name { return protoreflect.Name(node.Name) }),
 		WithSkipID(true),
+		WithSkipFunc(func(f *gen.Field, opt entproto.FieldOptions) bool {
+			return f.Name == "created_at" || f.Name == "updated_at"
+		}),
+		WithEdgeName(func(g *gen.Type) protoreflect.Name { return protoreflect.Name(fmt.Sprintf("%sCreate", g.Name)) }),
 	).Build(ctx, create, node)
 	if err != nil {
 		return err
@@ -165,17 +168,17 @@ func (b *ServiceBuilder) methodEdges(ctx *Context, file *protobuilder.FileBuilde
 		data := ctx.NewMessage(edge.Type.Name)
 		if edge.Unique {
 			request.
-				AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type])).
-				AddField(protobuilder.NewField(protoreflect.Name(strcase.ToSnake(edge.Type.Name)+"_id"), EntityTypeMapping[edge.Type.IDType.Type]))
+				AddField(MustNewField("id", node.ID, EntityTypeMapping)).
+				AddField(MustNewField(strcase.ToSnake(edge.Type.Name)+"_id", edge.Type.ID, EntityTypeMapping))
 			response.AddField(protobuilder.NewField("data", protobuilder.FieldTypeMessage(data)))
 		} else {
-			options := ctx.NewMessage(fmt.Sprintf("%sOptions", edge.Type.Name))
+			optionsMessage := ctx.NewMessage(fmt.Sprintf("%sOptions", edge.Type.Name))
 			order := ctx.NewMessage(fmt.Sprintf("List%sOrder", edge.Type.Name))
 			request.
-				AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type])).
+				AddField(MustNewField("id", node.ID, EntityTypeMapping)).
 				AddField(protobuilder.NewField("paginator", TypePaginator))
 			request.
-				AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(options))).
+				AddField(protobuilder.NewField("options", protobuilder.FieldTypeMessage(optionsMessage))).
 				AddField(protobuilder.NewField("orders", protobuilder.FieldTypeMessage(order)).SetRepeated())
 			response.AddField(protobuilder.NewField("paginator", TypePaginator))
 			response.AddField(protobuilder.NewField("data", protobuilder.FieldTypeMessage(data)).SetRepeated())
@@ -197,8 +200,8 @@ func (b *ServiceBuilder) methodSet(ctx *Context, file *protobuilder.FileBuilder,
 		request, response := ctx.NewMethod(service, "Set"+text.ProtoPascal(v.Name), "Set"+node.Name+text.ProtoPascal(v.Name), opts)
 		file.AddMessage(request).AddMessage(response)
 		request.
-			AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type])).
-			AddField(protobuilder.NewField(protoreflect.Name(strcase.ToSnake(v.Name)), EntityTypeMapping[v.Type.Type]))
+			AddField(MustNewField("id", node.ID, EntityTypeMapping)).
+			AddField(MustNewField(strcase.ToSnake(v.Name), v, EntityTypeMapping))
 	}
 	return nil
 }
@@ -208,7 +211,7 @@ func (b *ServiceBuilder) methodGetMessages(ctx *Context, node *gen.Type, request
 	if err != nil {
 		return err
 	}
-	request.AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type]))
+	request.AddField(MustNewField("id", node.ID, EntityTypeMapping))
 	response.AddField(protobuilder.NewField("data", protobuilder.FieldTypeMessage(data)))
 	return nil
 }
@@ -252,12 +255,13 @@ func (b *ServiceBuilder) methodUpdateMessages(ctx *Context, node *gen.Type, requ
 	if err != nil {
 		return err
 	}
-	request.AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type]))
+	request.AddField(MustNewField("id", node.ID, EntityTypeMapping))
 	request.AddField(protobuilder.NewField("update", protobuilder.FieldTypeMessage(update)))
 	return nil
 }
+
 func (b *ServiceBuilder) methodDeleteMessages(ctx *Context, node *gen.Type, request, response *protobuilder.MessageBuilder) error {
-	request.AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type]))
+	request.AddField(MustNewField("id", node.ID, EntityTypeMapping))
 	return nil
 }
 

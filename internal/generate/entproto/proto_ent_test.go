@@ -75,7 +75,7 @@ func TestServiceBuilder(t *testing.T) {
 	for _, file := range files {
 		descriptor, err := file.Build()
 		if err != nil {
-			t.Error(err)
+			t.Error(file.Path(), err)
 			return
 		}
 		text, err := printer.PrintProtoToString(descriptor)

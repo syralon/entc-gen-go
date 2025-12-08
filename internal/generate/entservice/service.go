@@ -428,7 +428,7 @@ func (s *serviceBuilder) funcCreate(file *jen.File, node *gen.Type) {
 		if v.Name == "created_at" || v.Name == "updated_at" {
 			continue
 		}
-		val := jen.Id("request").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name)))
+		val := jen.Id("request").Dot("GetCreate()").Dot(fmt.Sprintf("Get%s()", text.ProtoPascal(v.Name)))
 		if v.Type.Type == field.TypeTime {
 			val = val.Dot("AsTime()")
 		}

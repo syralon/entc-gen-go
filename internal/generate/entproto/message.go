@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"entgo.io/ent/entc/gen"
-	"entgo.io/ent/schema/field"
 	openapiv3 "github.com/google/gnostic/openapiv3"
 	"github.com/jhump/protoreflect/v2/protobuilder"
 	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"
@@ -34,7 +33,7 @@ func WithSkipImmutable(skip bool) MessageOption {
 	}
 }
 
-func WithSkipFunc(fn func(opt entproto.FieldOptions) bool) MessageOption {
+func WithSkipFunc(fn func(f *gen.Field, opt entproto.FieldOptions) bool) MessageOption {
 	return func(builder *MessageBuildHelper) {
 		builder.skip = fn
 	}
@@ -56,14 +55,20 @@ func WithSkipID(b bool) MessageOption {
 		builder.skipID = b
 	}
 }
+func WithSkipEdge(b bool) MessageOption {
+	return func(builder *MessageBuildHelper) {
+		builder.skipEdge = b
+	}
+}
 
 type MessageBuildHelper struct {
 	edgeNameFunc  func(node *gen.Type) protoreflect.Name
 	mapping       TypeMapping
 	optional      bool
 	skipImmutable bool
-	skip          func(opt entproto.FieldOptions) bool
+	skip          func(f *gen.Field, opt entproto.FieldOptions) bool
 	singleEdge    bool
+	skipEdge      bool
 	skipID        bool
 }
 
@@ -72,7 +77,7 @@ func NewMessageBuildHelper(opts ...MessageOption) *MessageBuildHelper {
 		mapping:       EntityTypeMapping,
 		optional:      false,
 		skipImmutable: false,
-		skip:          func(opt entproto.FieldOptions) bool { return false },
+		skip:          func(f *gen.Field, opt entproto.FieldOptions) bool { return false },
 	}
 	for _, opt := range opts {
 		opt(mb)
@@ -85,7 +90,11 @@ func NewMessageBuildHelper(opts ...MessageOption) *MessageBuildHelper {
 
 func (b *MessageBuildHelper) Build(ctx *Context, mb *protobuilder.MessageBuilder, node *gen.Type) error {
 	if !b.skipID {
-		mb.AddField(protobuilder.NewField("id", b.mapping.Mapping(node.IDType.Type)))
+		idField, err := NewField("id", node.ID, b.mapping)
+		if err != nil {
+			return err
+		}
+		mb.AddField(idField)
 	}
 	if err := b.fields(mb, node); err != nil {
 		return err
@@ -97,11 +106,11 @@ func (b *MessageBuildHelper) Build(ctx *Context, mb *protobuilder.MessageBuilder
 		proto.SetExtension(messageOption, openapiv3.E_Schema, doc)
 		mb.SetOptions(messageOption)
 	}
+	if b.skipEdge {
+		return nil
+	}
 	for _, edge := range node.Edges {
-		m, err := ctx.GetMessage(b.edgeNameFunc(edge.Type))
-		if err != nil {
-			return err
-		}
+		m := ctx.NewMessage(string(b.edgeNameFunc(edge.Type)))
 		fb := protobuilder.NewField(protoreflect.Name(edge.Name), protobuilder.FieldTypeMessage(m))
 		if !b.singleEdge && !edge.Unique {
 			fb.SetRepeated()
@@ -113,33 +122,23 @@ func (b *MessageBuildHelper) Build(ctx *Context, mb *protobuilder.MessageBuilder
 
 func (b *MessageBuildHelper) fields(mb *protobuilder.MessageBuilder, node *gen.Type) error {
 	for _, v := range node.Fields {
-		if v.Immutable && b.skipImmutable {
-			continue
-		}
-		if v.Type.Type == field.TypeEnum {
-			// TODO
-		}
-		fieldOpts, err := entproto.GetFieldOptions(v.Annotations)
+		opt, err := entproto.GetFieldOptions(v.Annotations)
 		if err != nil {
 			return err
 		}
-		if b.skip(fieldOpts) {
+		if v.Immutable && b.skipImmutable {
 			continue
 		}
-		var entType = v.Type.Type
-		if fieldOpts.Type > 0 {
-			entType = fieldOpts.Type
+		if b.skip(v, opt) {
+			continue
 		}
-		fieldType := b.mapping.Mapping(entType)
-		if fieldType == nil {
-			return fmt.Errorf("unsupported entity type: %s", v.Type.Type)
+		fb, err := NewField(v.Name, v, b.mapping)
+		if err != nil {
+			return err
 		}
-		fb := protobuilder.NewField(protoreflect.Name(v.Name), fieldType)
 		fb.SetComments(protobuilder.Comments{LeadingComment: v.Comment()})
-		if fieldOpts.TypeRepeated {
-			fb.SetRepeated()
-		} else {
-			fb.SetProto3Optional(v.Optional || b.optional)
+		if b.optional {
+			fb.SetOptional()
 		}
 		if doc, err := openapi.GetSchema(v.Annotations); err != nil {
 			return fmt.Errorf("invalid openapi annotation on field %s.%s: %w", node.Name, v.Name, err)

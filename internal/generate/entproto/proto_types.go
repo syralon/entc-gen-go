@@ -1,9 +1,12 @@
 package entproto
 
 import (
+	"entgo.io/ent/entc/gen"
 	"entgo.io/ent/schema/field"
 	"github.com/jhump/protoreflect/v2/protobuilder"
+	"github.com/syralon/entc-gen-go/pkg/annotations/entproto"
 	entpb "github.com/syralon/entc-gen-go/proto/syralon/entproto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -65,4 +68,28 @@ type typeMapping map[field.Type]*protobuilder.FieldType
 
 func (m typeMapping) Mapping(t field.Type) *protobuilder.FieldType {
 	return m[t]
+}
+
+func NewField(name string, field *gen.Field, mapping TypeMapping) (*protobuilder.FieldBuilder, error) {
+	fieldOpts, err := entproto.GetFieldOptions(field.Annotations)
+	if err != nil {
+		return nil, err
+	}
+	t := fieldOpts.Type
+	if t == 0 {
+		t = field.Type.Type
+	}
+	fi := protobuilder.NewField(protoreflect.Name(name), mapping.Mapping(t))
+	if fieldOpts.TypeRepeated {
+		fi.SetRepeated()
+	}
+	return fi, nil
+}
+
+func MustNewField(name string, field *gen.Field, mapping TypeMapping) *protobuilder.FieldBuilder {
+	fi, err := NewField(name, field, mapping)
+	if err != nil {
+		panic(err)
+	}
+	return fi
 }
