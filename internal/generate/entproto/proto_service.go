@@ -27,7 +27,7 @@ func (f ServiceBuildOptionFunc) applyService(builder *ServiceBuilder) {
 }
 
 type ServiceBuilder struct {
-	builder
+	options
 }
 
 func NewServiceBuilder(options ...ServiceBuildOption) *ServiceBuilder {
@@ -52,7 +52,7 @@ func (b *ServiceBuilder) Build(ctx *Context, graph *gen.Graph) ([]*protobuilder.
 
 func (b *ServiceBuilder) build(ctx *Context, node *gen.Type) (*protobuilder.FileBuilder, error) {
 	filename := fmt.Sprintf("ent_%s_service.proto", strings.ToLower(node.Name))
-	file := ctx.NewFile(filename, b.protoPackage, b.goPackage)
+	file := ctx.NewFile(path.Join(b.path, filename), b.protoPackage, b.goPackage)
 	if err := b.messages(ctx, file, node); err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (b *ServiceBuilder) build(ctx *Context, node *gen.Type) (*protobuilder.File
 }
 
 func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, node *gen.Type) (err error) {
-	options := ctx.NewMessage(fmt.Sprintf("%sOptions", node.Name))
+	optionsMessage := ctx.NewMessage(fmt.Sprintf("%sOptions", node.Name))
 	update := ctx.NewMessage(fmt.Sprintf("%sUpdate", node.Name))
 	create := ctx.NewMessage(fmt.Sprintf("%sCreate", node.Name))
 
@@ -97,7 +97,7 @@ func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, 
 		WithForceOptional(true),
 		WithSingleEdge(true),
 		WithSkipFunc(func(opt entproto.FieldOptions) bool { return !opt.Filterable }),
-	).Build(ctx, options, node)
+	).Build(ctx, optionsMessage, node)
 	if err != nil {
 		return err
 	}
@@ -113,12 +113,13 @@ func (b *ServiceBuilder) messages(ctx *Context, file *protobuilder.FileBuilder, 
 	}
 	err = NewMessageBuildHelper(
 		WithEdgeName(func(node *gen.Type) protoreflect.Name { return protoreflect.Name(node.Name) }),
+		WithSkipID(true),
 	).Build(ctx, create, node)
 	if err != nil {
 		return err
 	}
 
-	file.AddMessage(options).AddMessage(update).AddMessage(create).AddMessage(orderMessage).AddEnum(orderEnum)
+	file.AddMessage(optionsMessage).AddMessage(update).AddMessage(create).AddMessage(orderMessage).AddEnum(orderEnum)
 	return err
 }
 
@@ -193,11 +194,11 @@ func (b *ServiceBuilder) methodSet(ctx *Context, file *protobuilder.FileBuilder,
 			continue
 		}
 		opts := b.methodSetOptions(node, v.Name)
-		request, response := ctx.NewMethod(service, "Set"+text.ProtoPackage(v.Name), "Set"+node.Name+text.ProtoPackage(v.Name), opts)
+		request, response := ctx.NewMethod(service, "Set"+text.ProtoPascal(v.Name), "Set"+node.Name+text.ProtoPascal(v.Name), opts)
 		file.AddMessage(request).AddMessage(response)
 		request.
 			AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type])).
-			AddField(protobuilder.NewField("set", EntityTypeMapping[v.Type.Type]))
+			AddField(protobuilder.NewField(protoreflect.Name(strcase.ToSnake(v.Name)), EntityTypeMapping[v.Type.Type]))
 	}
 	return nil
 }
@@ -251,6 +252,7 @@ func (b *ServiceBuilder) methodUpdateMessages(ctx *Context, node *gen.Type, requ
 	if err != nil {
 		return err
 	}
+	request.AddField(protobuilder.NewField("id", EntityTypeMapping[node.IDType.Type]))
 	request.AddField(protobuilder.NewField("update", protobuilder.FieldTypeMessage(update)))
 	return nil
 }
@@ -305,9 +307,12 @@ func (b *ServiceBuilder) methodSetOptions(node *gen.Type, fieldName string) *des
 	if apiOpt.Pattern == "" {
 		return nil
 	}
-	rule := &googleapi.HttpRule{Pattern: &googleapi.HttpRule_Put{
-		Put: path.Join(apiOpt.Pattern, strings.ToLower(node.Name), "{id}", strings.ToLower(strcase.ToCamel(fieldName))),
-	}}
+	rule := &googleapi.HttpRule{
+		Pattern: &googleapi.HttpRule_Put{
+			Put: path.Join(apiOpt.Pattern, strings.ToLower(node.Name), "{id}", strings.ToLower(strcase.ToCamel(fieldName))),
+		},
+		Body: "*",
+	}
 	properties := &descriptor.MethodOptions{}
 	proto.SetExtension(properties, googleapi.E_Http, rule)
 	return properties

@@ -24,7 +24,10 @@ func Proto() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			generator := entproto.New(opt.module, opt.output)
+			generator, err := entproto.NewGenerator(entproto.WithOutput(opt.output))
+			if err != nil {
+				return err
+			}
 			if err = generator.Generate(ctx, graph); err != nil {
 				return err
 			}

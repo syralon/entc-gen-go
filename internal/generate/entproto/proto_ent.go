@@ -3,6 +3,7 @@ package entproto
 import (
 	"entgo.io/ent/entc/gen"
 	"github.com/jhump/protoreflect/v2/protobuilder"
+	"path"
 )
 
 type EntBuildOption interface {
@@ -10,7 +11,7 @@ type EntBuildOption interface {
 }
 
 type EntBuilder struct {
-	builder
+	options
 }
 
 func NewEntBuilder(options ...EntBuildOption) *EntBuilder {
@@ -22,7 +23,7 @@ func NewEntBuilder(options ...EntBuildOption) *EntBuilder {
 }
 
 func (b *EntBuilder) Build(ctx *Context, graph *gen.Graph) ([]*protobuilder.FileBuilder, error) {
-	file := ctx.NewFile("ent.proto", b.protoPackage, b.goPackage)
+	file := ctx.NewFile(path.Join(b.path, "ent.proto"), b.protoPackage, b.goPackage)
 	var messages []*protobuilder.MessageBuilder
 	for _, node := range graph.Nodes {
 		message := ctx.NewMessage(node.Name)
