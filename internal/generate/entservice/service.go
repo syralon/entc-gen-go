@@ -60,8 +60,6 @@ func (s *serviceBuilder) Build(_ context.Context, node *gen.Type) (*jen.File, er
 func (s *serviceBuilder) funcToProto(file *jen.File, node *gen.Type) {
 	defer file.Line()
 
-	jen.If(jen.Id("data").Op("==").Nil()).Block(jen.Return(jen.Nil()))
-
 	var fields []jen.Code
 	fields = append(
 		fields,
@@ -96,6 +94,7 @@ func (s *serviceBuilder) funcToProto(file *jen.File, node *gen.Type) {
 		Params(jen.Id("data").Op("*").Qual(s.entPackage, text.EntPascal(node.Name))).
 		Op("*").Qual(s.protoPackage, text.ProtoPascal(node.Name)).
 		Block(
+			jen.If(jen.Id("data").Op("==").Nil()).Block(jen.Return(jen.Nil())),
 			jen.Return(
 				jen.Op("&").Qual(s.protoPackage, text.ProtoPascal(node.Name)).Block(fields...),
 			),
@@ -227,7 +226,7 @@ func (s *serviceBuilder) funcList(file *jen.File, node *gen.Type) {
 			jen.Line(),
 			s.buildOrder(node.Name),
 			s.buildPaginator(node),
-			s.buildListResponse(node.Name),
+			s.buildListResponse(node.Name, node.Name),
 		)
 }
 
@@ -259,7 +258,7 @@ func (s *serviceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 		s.serviceFunc(file, node.Name,
 			fmt.Sprintf("List%s", text.ProtoPascal(edge.Name)),
 			fmt.Sprintf("List%s%sRequest", node.Name, text.ProtoPascal(edge.Name)),
-			fmt.Sprintf("List%sResponse", edge.Type.Name),
+			fmt.Sprintf("List%s%sResponse", node.Name, text.ProtoPascal(edge.Name)),
 		).Block(
 			define("query").Id("s").Dot("client").Dot("Query()").Dot("Where").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(EntID(edge.Type, jen.Id("request").Dot("Id"))),
@@ -269,7 +268,7 @@ func (s *serviceBuilder) funcListEdge(file *jen.File, node *gen.Type) {
 			file.Line(),
 			s.buildOrder(edge.Type.Name),
 			s.buildPaginator(edge.Type),
-			s.buildListResponse(edge.Type.Name),
+			s.buildListResponse(node.Name+text.ProtoPascal(edge.Name), edge.Type.Name),
 		)
 	}
 }
@@ -295,7 +294,7 @@ func (s *serviceBuilder) funcGetEdge(file *jen.File, node *gen.Type) {
 		s.serviceFunc(file, node.Name,
 			fmt.Sprintf("Get%s", text.ProtoPascal(edge.Name)),
 			fmt.Sprintf("Get%s%sRequest", node.Name, text.ProtoPascal(edge.Name)),
-			fmt.Sprintf("Get%sResponse", edge.Type.Name),
+			fmt.Sprintf("Get%s%sResponse", node.Name, text.ProtoPascal(edge.Name)),
 		).Block(
 			define("query").Id("s").Dot("client").Dot("Query()").Dot("Where").Call(
 				jen.Qual(path.Join(s.entPackage, strings.ToLower(node.Name)), "ID").Call(EntID(node, jen.Id("request").Dot("GetId()"))),
@@ -305,7 +304,7 @@ func (s *serviceBuilder) funcGetEdge(file *jen.File, node *gen.Type) {
 				))),
 			),
 			file.Line(),
-			s.buildGetResponse(edge.Type.Name),
+			s.buildGetResponse(node.Name+text.ProtoPascal(edge.Name), edge.Type.Name),
 		)
 	}
 }
@@ -345,7 +344,7 @@ func (s *serviceBuilder) buildPaginator(node *gen.Type) jen.Code {
 	).Line()
 }
 
-func (s *serviceBuilder) buildListResponse(name string) *jen.Statement {
+func (s *serviceBuilder) buildListResponse(response, name string) *jen.Statement {
 	codes := jen.Statement{
 		define("data", "err").Id("query").Dot("All").Call(jen.Id("ctx")),
 		jen.Line(),
@@ -354,13 +353,13 @@ func (s *serviceBuilder) buildListResponse(name string) *jen.Statement {
 		),
 		jen.Line(),
 		jen.Return(
-			structPtr(jen.Qual(s.protoPackage, fmt.Sprintf("List%sResponse", name)), jen.Id("Data"), jen.Id("Trans").Call(jen.Id("data"), jen.Id(fmt.Sprintf("%sToProto", name)))),
+			structPtr(jen.Qual(s.protoPackage, fmt.Sprintf("List%sResponse", response)), jen.Id("Data"), jen.Id("Trans").Call(jen.Id("data"), jen.Id(fmt.Sprintf("%sToProto", name)))),
 			jen.Nil()),
 	}
 	return &codes
 }
 
-func (s *serviceBuilder) buildGetResponse(name string) *jen.Statement {
+func (s *serviceBuilder) buildGetResponse(response, name string) *jen.Statement {
 	codes := jen.Statement{
 		define("data", "err").Id("query").Dot("First").Call(jen.Id("ctx")),
 		jen.Line(),
@@ -370,7 +369,7 @@ func (s *serviceBuilder) buildGetResponse(name string) *jen.Statement {
 		jen.Line(),
 		jen.Return(
 			structPtr(
-				jen.Qual(s.protoPackage, fmt.Sprintf("Get%sResponse", name)),
+				jen.Qual(s.protoPackage, fmt.Sprintf("Get%sResponse", response)),
 				jen.Id("Data"),
 				jen.Id(fmt.Sprintf("%sToProto", name)).Call(jen.Id("data")),
 			),
@@ -442,7 +441,11 @@ func (s *serviceBuilder) funcCreate(file *jen.File, node *gen.Type) {
 			define("data", "err").Id("create").Dot("Save").Call(jen.Id("ctx")),
 			ifErr(),
 			jen.Return(
-				structPtr(jen.Qual(s.protoPackage, fmt.Sprintf("Create%sResponse", node.Name)), jen.Id("Id"), ProtoID(node, jen.Id("data").Dot("ID"))),
+				structPtr(
+					jen.Qual(s.protoPackage, fmt.Sprintf("Create%sResponse", node.Name)),
+					jen.Id("Data"),
+					jen.Id(fmt.Sprintf("%sToProto", node.Name)).Call(jen.Id("data")),
+				),
 				jen.Nil(),
 			),
 		)

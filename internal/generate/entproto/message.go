@@ -115,6 +115,7 @@ func (b *MessageBuildHelper) Build(ctx *Context, mb *protobuilder.MessageBuilder
 		if !b.singleEdge && !edge.Unique {
 			fb.SetRepeated()
 		}
+		fb.SetProto3Optional((b.optional || edge.Optional) && !fb.IsRepeated())
 		mb.AddField(fb)
 	}
 	return nil
@@ -136,10 +137,8 @@ func (b *MessageBuildHelper) fields(mb *protobuilder.MessageBuilder, node *gen.T
 		if err != nil {
 			return err
 		}
+		fb.SetProto3Optional((b.optional || v.Optional) && !fb.IsRepeated())
 		fb.SetComments(protobuilder.Comments{LeadingComment: v.Comment()})
-		if b.optional {
-			fb.SetOptional()
-		}
 		if doc, err := openapi.GetSchema(v.Annotations); err != nil {
 			return fmt.Errorf("invalid openapi annotation on field %s.%s: %w", node.Name, v.Name, err)
 		} else if doc != nil {
